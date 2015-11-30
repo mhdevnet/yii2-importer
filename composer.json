@@ -1,0 +1,21 @@
+{
+    "name": "mhdevnet/yii2-importer",
+    "description": "This is the importer module that allows you to import data ffrom various sources",
+    "type": "yii2-extension",
+    "keywords": ["yii2","extension"],
+    "license": "GPL-3.0+",
+    "authors": [
+        {
+            "name": "NITM",
+            "email": "admin@ninjasitm.com"
+        }
+    ],	
+   "require": {
+	"mhdevnet/yii2-module": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "nitm\\importer\\": ""
+        }
+    },
+}

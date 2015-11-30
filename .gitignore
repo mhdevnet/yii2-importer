@@ -1,0 +1,8 @@
+config/
+.git/
+**.LCK
+**.DS_Stroe
+**~
+**.lock
+**dwsync.xml
+_notes/
