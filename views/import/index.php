@@ -11,13 +11,13 @@ use nitm\helpers\Icon;
 
 <div class="row">
     <div class="col-lg-12 col-md-12 col-sm-12">
-    	<?= 
+    	<?=
 			\nitm\widgets\modal\Modal::widget([
 				'size' => 'large',
 				"header" => Html::tag('h1', "Import New Data"),
 				'toggleButton' => [
 					'tag' => 'a',
-					'label' => "New Import ".Icon::forAction('plus'), 
+					'label' => "New Import ".Icon::forAction('plus'),
 					'href' => \Yii::$app->urlManager->createUrl(['/import/form/create', '__format' => 'modal']),
 					'title' => \Yii::t('yii', "Add a new ".$model->properName()),
 					'role' => 'dynamicAction createAction disabledOnClose',
@@ -32,7 +32,7 @@ use nitm\helpers\Icon;
 	'export' => false,
 	'pjax' => false,
 	'striped' => false,
-	'responsive' => true, 
+	'responsive' => true,
 	'floatHeader'=> false,
 	'options' => [
 		'id' => $isWhat
@@ -134,7 +134,7 @@ use nitm\helpers\Icon;
 						'size' => 'x-large',
 						'toggleButton' => [
 							'tag' => 'a',
-							'label' => Icon::forAction('view'), 
+							'label' => Icon::forAction('view'),
 							'href' => \Yii::$app->urlManager->createUrl([$url, '__format' => 'modal']),
 							'title' => Yii::t('yii', 'View '),
 							'class' => 'fa-2x',
@@ -149,8 +149,8 @@ use nitm\helpers\Icon;
 					]);
 				},
 				'replies' => function($url, $model) {
-					return $this->context->replyCountWidget([
-						"model" => $model->replyModel(),
+					return \nitm\widgets\replies\RepliesCount::widget([
+						"model" => $model->reply(),
 						'fullDetails' => false,
 					]);
 				}
@@ -177,7 +177,7 @@ use nitm\helpers\Icon;
 		];
 	},
 	'afterRow' => function ($model, $key, $index, $grid){
-			
+
 		$statusInfo = \nitm\widgets\metadata\StatusInfo::widget([
 			'items' => [
 				[
@@ -191,20 +191,20 @@ use nitm\helpers\Icon;
 				],
 			],
 		]);
-		
-		$metaInfo = Html::tag('div', 
-			Html::tag('div', 
+
+		$metaInfo = Html::tag('div',
+			Html::tag('div',
 				implode('<br>', [$statusInfo])
 			),[
 				'class' => 'wrapper'
 			]
 		);
-		return Html::tag('tr', 
+		return Html::tag('tr',
 			Html::tag(
-				'td', 
-				$metaInfo, 
+				'td',
+				$metaInfo,
 				[
-					'colspan' => 9, 
+					'colspan' => 9,
 					'rowspan' => 1,
 				]
 			),

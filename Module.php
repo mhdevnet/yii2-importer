@@ -9,7 +9,7 @@ use nitm\components\Logger;
 use nitm\importer\Importer;
 use nitm\components\Dispatcher;
 
-class Module extends \yii\base\Module implements \yii\base\BootstrapInterface
+class Module extends \yii\base\Module
 {
 	/**
 	 * @string the module id

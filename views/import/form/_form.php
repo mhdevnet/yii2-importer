@@ -31,14 +31,14 @@ $formOptions = array_replace_recursive($formOptions, [
     <h4 class="text-warning">
         All data uploaded or sent through this form WILL OVERWRITE existing data. If the import you are trying to create already exists please use a different name.
     </h4>
-		<?php $form = include(\Yii::getAlias("@nitm/views/layouts/form/header.php")); ?> 
+		<?php $form = include(\Yii::getAlias("@nitm/importer/views/layouts/form/header.php")); ?>
         <?=
             $form->field($model, 'name', [
                 'options' => [
                     'placeholder' => 'Name this import',
 					'class' => !$model->isNewRecord ? 'disabled' : ''
                 ]
-            ]); 
+            ]);
         ?>
         <?=
             $form->field($model, 'data_type', [
@@ -47,7 +47,7 @@ $formOptions = array_replace_recursive($formOptions, [
                     'role' => 'selectDataType',
 					'class' => !$model->isNewRecord ? 'disabled' : ''
                 ]
-            ])->dropDownList(\Yii::$app->getModule('nitm')->importer->getTypes('name'))->label("Data Contains"); 
+            ])->dropDownList(\Yii::$app->getModule('nitm-importer')->getTypes('name'))->label("Data Contains");
         ?>
         <?=
             $form->field($model, 'type', [
@@ -56,9 +56,9 @@ $formOptions = array_replace_recursive($formOptions, [
                     'role' => 'selectType',
 					'class' => !$model->isNewRecord ? 'disabled' : ''
                 ]
-            ])->dropDownList(\Yii::$app->getModule('nitm')->importer->getParsers('name'))->label("Data Format"); 
+            ])->dropDownList(\Yii::$app->getModule('nitm-importer')->getParsers('name'))->label("Data Format");
         ?>
-		<?php 
+		<?php
             echo Html::activeHiddenInput($model, 'source', [
                 'role' => 'sourceNameInput'
             ]);
@@ -67,7 +67,7 @@ $formOptions = array_replace_recursive($formOptions, [
         <div class="row">
             <div class="col-md-12 col-lg-12">
                 <div class="pull-right">
-                <?php 
+                <?php
                     echo Html::submitButton($model->isNewRecord ? 'Preview' : 'Update', ['class' => 'btn btn-primary']);
                     echo Html::resetButton('Reset', ['class' => 'btn btn-default']);
                 ?>
@@ -79,15 +79,15 @@ $formOptions = array_replace_recursive($formOptions, [
             <?= $this->render("source.php", ['form' => $form, 'model' => $model]); ?>
         <?php endif; ?>
         <?php
-            ActiveForm::end(); 
+            ActiveForm::end();
         ?>
     </div>
     <?php if(!$model->isNewRecord): ?>
     <div class="col-md-offset-5 col-lg-offset-4 col-md-7 col-lg-8 col-sm-12 absolute full-height" id="elements-preview-ias-container">
     	<?= $this->render("../preview.php", [
-			'form' => $form, 
-			'model' => $model, 
-			'dataProvider' => $dataProvider, 
+			'form' => $form,
+			'model' => $model,
+			'dataProvider' => $dataProvider,
 			'processor' => $processor,
 			'formOptions' => $formOptions
 		]); ?>
