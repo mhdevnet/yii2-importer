@@ -34,7 +34,7 @@ use nitm\helpers\Icon;
 		'items' => [
 			[
 				'label' => 'Import From File',
-				'content' => Html::tag('div', 
+				'content' => Html::tag('div',
 					"<br>".FileUploadUI::widget([
 						"formView" => "@nitm/views/import/form/fileupload",
 						'model' => $model,
@@ -53,7 +53,7 @@ use nitm\helpers\Icon;
 						// see: https://github.com/blueimp/jQuery-File-Upload/wiki/Options#processing-callback-options
 						'clientEvents' => [
 							'fileuploaddone' => 'function(e, data) {
-								$nitm.module("entity:import").afterPreview(data.result, "entity:import", e.target, data.fileInput);
+								$nitm.module("import").afterPreview(data.result, "import", e.target, data.fileInput);
 							}',
 							'fileuploadfail' => 'function(e, data) {
 								$([role="fileUploadMessage"]).html(data.message);
@@ -61,20 +61,20 @@ use nitm\helpers\Icon;
 							'fileuploadadd' => 'function (e, data) {
 								//Only submit if the form is validated properly
 								var $activeForm = $("#'.$form->id.'").yiiActiveForm();
-								$activeForm.yiiActiveForm("data").submitting = true; 
+								$activeForm.yiiActiveForm("data").submitting = true;
 								$activeForm.yiiActiveForm("validate");
 							}',
 							'fileuploadsubmit' => 'function(e, data) {
 								//Only submit if the form is validated properly
 								var $activeForm = $("#'.$form->id.'").yiiActiveForm();
-								
+
 								data.context.find(":submit").prop("disabled", false);
 								//Change the URL to the URL of the newly created import Source
 								$(data.form).fileupload("option",
 									"url",
 									$activeForm.attr("action")
 								);
-								
+
 								var validated = $activeForm.yiiActiveForm("data").validated;
 								return validated && ($activeForm.data("id") != undefined);
 							}'
@@ -166,7 +166,7 @@ use nitm\helpers\Icon;
 
 <?php if(\Yii::$app->request->isAjax): ?>
 <script type="text/javascript">
-$nitm.onModuleLoad('entity:import', function(module) {
+$nitm.onModuleLoad('import', function(module) {
 	module.initDefaults();
 });
 </script>

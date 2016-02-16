@@ -130,11 +130,11 @@ class Module extends \yii\base\Module
 		$this->_parsers = array_merge($parsers, [
 			'csv' => [
 				'name' => 'CSV',
-				'class' => \nitm\importer\CsvParser::className(),
+				'class' => \nitm\importer\parsers\CsvParser::className(),
 			],
 			'json' => [
 				'name' => 'Json',
-				'class' => \nitm\importer\JsonParser::className(),
+				'class' => \nitm\importer\parsers\JsonParser::className(),
 			]
 		]);
 	}

@@ -20,25 +20,25 @@ $form = ActiveForm::begin([
 
 ]);
 
-$importSubmit = Html::tag('div', 
-	Html::tag('div', 
+$importSubmit = Html::tag('div',
+	Html::tag('div',
 		Html::submitButton('Import Page', [
 			'class' => 'btn btn-primary',
-			'onclick' => '$nitm.module("entity:import").importElements(event, "'.$form->options['id'].'");',
+			'onclick' => '$nitm.module("import").importElements(event, "'.$form->options['id'].'");',
 
 		])
 		."&nbsp;&nbsp;".
 		Html::a(($model->percentComplete() == 100 ? '100% complete!' : $model->percentComplete().'% done. Import Next Batch'), '#', [
-			'role' => 'importBatch', 
+			'role' => 'importBatch',
 			'class' => 'btn '.(($model->percentComplete() == 100) ? 'btn-success' : 'btn-info'),
-			'onclick' => '$nitm.module("entity:import").importBatch(event);',
+			'onclick' => '$nitm.module("import").importBatch(event);',
 			'data-url' => '/import/import-batch/'.$model->getId()
 		])
 		."&nbsp;&nbsp;".
 		Html::a(($model->percentComplete() == 100 ? '100% complete!' : $model->percentComplete().'% done. Import Remaining'), '#', [
-			'role' => 'importAll', 
+			'role' => 'importAll',
 			'class' => 'btn '.(($model->percentComplete() == 100) ? 'btn-success' : 'btn-warning'),
-			'onclick' => '$nitm.module("entity:import").importAll(event);',
+			'onclick' => '$nitm.module("import").importAll(event);',
 			'data-url' => '/import/import-batch/'.$model->getId(),
 			'data-tooltip' => 'THis is an intensit process. Please wiat for everything to complete'
 		]), [
@@ -46,11 +46,16 @@ $importSubmit = Html::tag('div',
 	]),[
 		'class' => 'row'
 	]);
+
+	$this->registerJs('$nitm.onModuleLoad("import", function (module) {
+		module.initElementImport();
+		module.initElementImportForm();
+	})');
 ?>
-<div class="full-height">
+<div class="full-height" id="element-preview-container">
     <div id="alert"></div>
     <?php
-    
+
     //We're dealing with data pulled from the DB. Tansform it
     if($dataProvider instanceof \yii\data\ActiveDataProvider)
         $dataProvider->setModels(array_map(function ($data) use($processor){
@@ -59,28 +64,32 @@ $importSubmit = Html::tag('div',
             $data['_id'] = $data['id'];
             return $data;
         }, $dataProvider->getModels()));
-    
+
     echo TabularForm::widget([
         // your data provider
         'dataProvider' => $dataProvider,
-     
+
         // formName is mandatory for non active forms
-        // you can get all attributes in your controller 
+        // you can get all attributes in your controller
         // using $_POST['kvTabForm'],
         'form' => $form,
         'formName' => $model->formName().'[elements]',
-        
+
         // set defaults for rendering your attributes
         'attributeDefaults'=>[
             'type' => TabularForm::INPUT_RAW,
         ],
-        
+
         // configure attributes to display
         'attributes' => $this->context->getProcessor()->formAttributes(),
         // configure other gridview settings
         'gridSettings'=>[
             'pjax' => true,
             'floatHeader' => true,
+			'beforeHeader' => Html::tag('div', $importSubmit, [
+                'class' => 'text-right kv-thead-float',
+                'style' => 'background-color: rgba(0, 0, 0, 0.5); padding: 6px; position:fixed; margin-top: -50px; right: 30px; z-index: 1040'
+			]),
             'options' => [
                 'id' => 'elements-preview',
                 'role' => 'previewImport'
@@ -96,17 +105,6 @@ $importSubmit = Html::tag('div',
                 'negativeMargin' => 150,
                 'delay' => 500,
             ],*/
-            'panel'=>[
-                'type'=>GridView::TYPE_DEFAULT,
-                'after' => Html::tag('div', $importSubmit, [
-                    'class' => 'text-right',
-                    'style' => 'background-color: #222; padding: 6px; position:absolute; bottom: 0px; right: 20px; z-index: 1040']),
-                'before' => false,
-				'footer' => Html::script('$nitm.onModuleLoad("entity:import", function (module) {
-		module.initElementImportForm();
-		module.initElementImport();
-	});')
-            ],
             'rowOptions' => function ($model) {
                 return [
                     "class" => 'item '.\nitm\helpers\Statuses::getIndicator(ArrayHelper::getValue($model, 'is_imported', false) ? 'success' : 'default'),
@@ -141,7 +139,7 @@ $importSubmit = Html::tag('div',
             ]
         ]
     ]);
-    
+
     ActiveForm::end();
     ?>
 </div>

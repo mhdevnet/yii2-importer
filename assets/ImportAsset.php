@@ -4,7 +4,7 @@
  * @copyright Copyright (c) 2014 NITM Inc
  */
 
-namespace nitm\assets;
+namespace nitm\importer\assets;
 
 use yii\web\AssetBundle;
 
@@ -13,7 +13,7 @@ use yii\web\AssetBundle;
  */
 class ImportAsset extends AssetBundle
 {
-	public $sourcePath = __DIR__;
+	public $sourcePath = '@nitm/importer/assets/';
 	public $css = [
 	];
 	public $js = [
@@ -21,7 +21,6 @@ class ImportAsset extends AssetBundle
 	];
 	//public $jsOptions = ['position' => \yii\web\View::POS_READY];
 	public $depends = [
-		'yii\web\YiiAsset',
 		'yii\bootstrap\BootstrapAsset',
 		'yii\bootstrap\BootstrapPluginAsset',
 		'nitm\assets\AppAsset',

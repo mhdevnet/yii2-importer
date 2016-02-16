@@ -1,143 +1,140 @@
+'use strict';
 
-function Import()
-{
-	NitmEntity.call(this);
-	
-	var self = this;
-	this.id = 'entity:import';
-	
-	this.forms = {
-		roles: {
-			create: "createImport",
-			elementImport: "importElements"
-		}
-	};
-	
-	this.buttons = {
-		create: 'newImport',
-		remove: 'removeImport',
-		disable: 'disableImport',
-	};
-	
-	this.links = {
-		source:  "[role~='importSource']"
-	};
-	
-	this.views = {
-		listFormContainerId: "[role~='importFormContainer']",
-		containerId: "[role~='import']",
-		itemId: "import",
-		source: "[role~='sourceName']",
-		sourceInput: "[role~='sourceNameInput']",
-		preview: "[role~='previewImport']",
-		element: "[role~='importElement']",
-	};
-	this.defaultInit = [
-		'initForms',
-		'initSource',
-		'initPreview'
-	];
-	
-	//functions
-	this.initSource = function () {
-		$(this.links.source).each(function () {
-			var $elem = $(this);
-			$elem.on('click', function (event) {
-				$(self.views.source).each(function() {
-					$(this).html($elem.data('source'));
+class Import extends NitmEntity {
+	constructor() {
+		super('import');
+		this.forms = {
+			roles: {
+				create: "createImport",
+				elementImport: "importElements"
+			}
+		};
+
+		this.buttons = {
+			create: 'newImport',
+			remove: 'removeImport',
+			disable: 'disableImport',
+		};
+
+		this.links = {
+			source:  "[role~='importSource']"
+		};
+
+		this.views = {
+			listFormContainerId: "[role~='importFormContainer']",
+			containerId: "[role~='import']",
+			itemId: "import",
+			source: "[role~='sourceName']",
+			sourceInput: "[role~='sourceNameInput']",
+			preview: "[role~='previewImport']",
+			element: "[role~='importElement']",
+		};
+		this.defaultInit = [
+			'initForms',
+			'initSource',
+			'initPreview'
+		];
+	}
+
+	initSource () {
+		$(this.links.source).each((i, elem) => {
+			let $elem = $(elem);
+			$elem.on('click', (event) =>  {
+				$(this.views.source).each(function() {
+					$(event.currentTarget).html($elem.data('source'));
 				});
-				$(self.views.sourceInput).each(function() {
-					$(this).val($elem.data('source'));
+				$(this.views.sourceInput).each(function() {
+					$(event.currentTarget).val($elem.data('source'));
 				});
 			});
 		});
 	}
-	
-	this.initPreview = function () {
-		$("form[role~='"+this.forms.roles.create+"']").on('reset', function (event) {
-			$(self.views.preview).empty();
+
+	initPreview () {
+		$("form[role~='"+this.forms.roles.create+"']").on('reset', (event) => {
+			$(this.views.preview).empty();
 		});
 	}
-	
-	this.afterCreate = function (result, currentIndex, form) {
+
+	afterCreate (result, currentIndex, form) {
 		//Change the form to update the source since the source gets created on preview
-		var message = !result.message ? "Success! You can import specific records in this dataset below" : result.message;
-		$nitm.notify(message, $nitm.classes.success, form);
+		var message = result.message || "Success! You can import specific records in this dataset below";
+		$nitm.trigger('notify', [message, $nitm.classes.success, form]);
 		if(result.success) {
 			$(form).attr('action', result.url);
 			$(form).data('id', result.id);
 		}
 	}
-	
-	this.afterPreview = function(result, currentIndex, form) {
+
+	afterPreview (result, currentIndex, form) {
 		$(this.views.preview).html(result.data);
 		$(form).find(':submit').text("Import");
 		$(form).find("table tbody.files").empty();
 	}
-	
-	this.initElementImportForm = function (containerId){
-		var container = $nitm.getObj((containerId == undefined) ? 'body' : containerId);
-		container.find("form[role~='"+self.forms.roles.elementImport+"']").map(function() {
-			var $form = $(this);
+
+	initElementImportForm (containerId){
+		let $container = $nitm.getObj(containerId || 'body');
+		$container.find("form[role~='"+this.forms.roles.elementImport+"']").each((i, elem) => {
+			let $form = $(this);
 			$form.off('submit');
-			$form.on('submit', function (e) {
+			$form.on('submit', (e) =>  {
 				e.preventDefault();
-				if(self.hasActivity(this.id))
+				if(this.hasActivity(this.id))
 					return false;
-				self.updateActivity(this.id);
-				$form.find(self.views.element).map(function () {
-					self.importElement(this);
+				this.updateActivity(this.id);
+				$form.find(this.views.element).map((i, elem) => {
+					this.importElement(elem);
 				});
 			});
 		});
 	}
-	
-	this.afterElementImport = function (result, elem) {
+
+	afterElementImport (result, elem) {
 		if(result.success || result.exists) {
-			var $elem = $(elem);
+			let $elem = $(elem);
 			$elem.parents('tr').addClass(this.classes[result.class]);
 			$elem.addClass('disabled');
 			$elem.html(result.icon);
-			$elem.on('click', function (event) { event.preventDefault(); return false});
+			$elem.on('click', (event) =>  { event.preventDefault(); return false});
 		}
 	}
-	
-	this.initElementImport = function (containerId){
-		var container = $nitm.getObj(self.views.preview);
-		container.find(self.views.element).map(function() {
-			var $elem = $(this);
-			$elem.on('click', function (e) {
+
+	initElementImport (containerId){
+		let $container = $nitm.getObj(containerId || this.views.preview);
+		$container.find(this.views.element).each((i, elem) => {
+			let $elem = $(elem);
+			$elem.on('click', (e) =>  {
 				e.preventDefault();
-				$nitm.startSpinner($elem);
-				self.importElement($elem.get(0));
+				$nitm.trigger('start-spinner', [$elem]);
+				this.importElement($elem.get(0));
 			});
 		});
 	}
-	
-	this.importElement = function (elem){
-		var $elem = $(elem);
-		$.post($elem.attr('href'), function(result) {
-			$nitm.stopSpinner($elem);
-			self.afterElementImport(result, $elem.get(0));
+
+	importElement (elem){
+		let $elem = $(elem);
+		$.post($elem.attr('href'), (result) => {
+			$nitm.trigger('stop-spinner', [$elem]);
+			this.afterElementImport(result, $elem.get(0));
 		});
 	}
-	
-	this.importElements = function (e, form){
+
+	importElements (e, form){
 		e.preventDefault();
-		var $form = $(form);
-		return self.operation(form, function(result) {
+		let $form = $(form);
+		return this.operation(form, function(result) {
 			if(result.success) {
-				$nitm.notify(result.message, result.class, form);
+				$nitm.trigger('notify', [result.message, result.class, form]);
 			}
 		});
 	}
-	
-	this.importBatch = function (e) {
+
+	importBatch (e) {
 		e.preventDefault();
-		$($nitm).trigger('nitm-animate-submit-start', [e.target]);
+		$nitm.trigger('animate-submit-start', [e.target]);
 		$.post($(e.target).data('url'), function (result) {
-			$($nitm).trigger('nitm-animate-submit-stop', [e.target]);
-			$nitm.notify(result.message, result.class, e.target);
+			$nitm.trigger('animate-submit-stop', [e.target]);
+			$nitm.trigger('notify', [result.message, result.class, e.target]);
 			if(result.percent)
 				if(result.percent < 100)
 					$(e.target).text(result.percent+'% done. Import Next Batch');
@@ -145,26 +142,24 @@ function Import()
 					$(e.target).text('Import Complete!').removeClass().addClass('btn btn-success');
 					$(e.target).on('click', function (e) {
 						e.preventDefault();
-						$nitm.notify("Import is already complete!!", "warning", e.target);
+						$nitm.trigger('notify', ["Import is already complete!!", "warning", e.target]);
 					});
 				}
 		});
 	}
-	
-	this.importAll = function (e) {
+
+	importAll (e) {
 		e.preventDefault();
-		$.post($(e.target).data('url'), function (result) {
-			$nitm.notify(result.message, result.class, e.target);
-			if(result.percent && result.percent < 100)
-			{
+		$.post($(e.target).data('url'), (result) => {
+			$nitm.trigger('notify', [result.message, result.class, e.target]);
+			if(result.percent && result.percent < 100) {
 				$(e.target).text(result.percent+'% done. Working..');
-				self.importAll(e);
-			}
-			else {
+				this.importAll(e);
+			} else {
 				$(e.target).text('Import Complete!').removeClass().addClass('btn btn-success');
 				$(e.target).on('click', function (e) {
 					e.preventDefault();
-					$nitm.notify("Import is already complete!!", "warning", e.target);
+					$nitm.trigger('notify', ["Import is already complete!!", "warning", e.target]);
 				});
 			}
 		});

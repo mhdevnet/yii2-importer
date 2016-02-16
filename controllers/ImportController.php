@@ -84,7 +84,7 @@ class ImportController extends \nitm\controllers\DefaultController
 	public static function assets()
 	{
 		return [
-			'import'
+			\nitm\importer\assets\ImportAsset::className()
 		];
 	}
 
@@ -94,7 +94,7 @@ class ImportController extends \nitm\controllers\DefaultController
 		]);
 	}
 
-    public function actionIndex()
+    public function actionIndex($className=null, $options=[])
     {
 		return parent::actionIndex(SourceSearch::className());
     }
@@ -232,7 +232,7 @@ class ImportController extends \nitm\controllers\DefaultController
 		return $this->actionImportAll($id);
 	}
 
-	public function actionCreate()
+	public function actionCreate($modelClass=null, $viewOptions=[])
 	{
 		/*$this->setResponseFormat('json');
 		$ret_val = [
@@ -284,7 +284,7 @@ class ImportController extends \nitm\controllers\DefaultController
 		return $this->renderResponse($ret_val, Response::viewOptions(), \Yii::$app->request->isAjax);
 	}
 
-	public function actionForm($type, $id=null)
+	public function actionForm($type, $id=null, $options=[], $returnData=false)
 	{
 		switch($type)
 		{
