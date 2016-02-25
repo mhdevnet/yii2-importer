@@ -42,7 +42,7 @@ class FactualParser extends JsonParser
 		return $this->_queryLimit;
 	}
 
-	public function parse()
+	public function parse($data=[], $offset=0, $limit=150)
 	{
 		//$this->setData(json_decode('{"type":"places-us","fields":{"category_ids":["312"], "region":"NY", "country":"us"}}', true));
 		$this->handle();

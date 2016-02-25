@@ -91,6 +91,7 @@ class ImportController extends \nitm\controllers\DefaultController
 	public function getWith()
 	{
 		return array_merge(parent::getWith(), [
+			'reply'
 		]);
 	}
 
