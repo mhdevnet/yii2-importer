@@ -70,7 +70,7 @@ class BaseImporter extends \yii\base\Model
 
 	public function getImporter()
 	{
-		return \Yii::$app->getModule('nitm')->importer->getParser($this->job->type);
+		return \Yii::$app->getModule('nitm-importer')->getParser($this->job->type);
 	}
 
 	public function setRawData(array $data, $append = false)
@@ -267,7 +267,7 @@ class BaseImporter extends \yii\base\Model
 		switch($job)
 		{
 			case 'data':
-			$query = $this->job->getElementsArray();
+			$query = $this->job->elementsArray;
 			foreach($query->select(['raw_data', 'id'])
 				->limit($this->limit)
 				->offset($this->offset)
@@ -282,8 +282,8 @@ class BaseImporter extends \yii\base\Model
 			break;
 
 			default:
-			$this->getImporter()->setData($this->getSource());
-			while(is_array($chunk = ArrayHelper::getValue($this->getImporter()->parse($this->getSource(), $this->offset, $this->batchSize), 'parsedData', null)))
+			$this->importer->setData($this->source);
+			while(is_array($chunk = ArrayHelper::getValue($this->importer->parse($this->source, $this->offset, $this->batchSize), 'parsedData', null)))
 			{
 				$this->prepare([$chunk]);
 				if(!$this->_isPrepared)
@@ -306,7 +306,7 @@ class BaseImporter extends \yii\base\Model
 		switch($job)
 		{
 			case 'elements':
-			$this->prepare($this->getImporter()->parse($this->getSource()));
+			$this->prepare($this->importer->parse($this->source));
 
 			if(!$this->_isPrepared)
 				return;
@@ -353,7 +353,7 @@ class BaseImporter extends \yii\base\Model
 			throw new \yii\base\ErrorException("Unsupported import mode: ".$mode);
 			break;
 		}
-		return count($this->getSource()) >= 1;
+		return count($this->source) >= 1;
 	}
 
 	public function end()
@@ -369,10 +369,10 @@ class BaseImporter extends \yii\base\Model
 		$this->job->raw_data = [];
 
 		 Source::updateAll([
-			'count' => $this->job->getElements()->where(['is_imported' => true])->count(),
-			'total' => $this->job->getElements()->count(),
+			'count' => $this->job->elements->where(['is_imported' => true])->count(),
+			'total' => $this->job->elements->count(),
 		], [
-			'id' => $this->job->getId()
+			'id' => $this->job->id
 		]);
 
 		$this->job->refresh();

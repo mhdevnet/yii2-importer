@@ -11,5 +11,5 @@ use yii\data\ActiveDataProvider;
  */
 class Source extends \nitm\search\BaseSearch
 {
-	public static $namespace = '\nitm\importer\models;';
+	public static $namespace = '\nitm\importer\models';
 }

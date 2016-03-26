@@ -33,6 +33,7 @@ use nitm\helpers\Icon;
 		'encodeLabels' => false,
 		'items' => [
 			[
+				'active' => $model->type == 'file',
 				'label' => 'Import From File',
 				'content' => Html::tag('div',
 					"<br>".FileUploadUI::widget([
@@ -96,6 +97,7 @@ use nitm\helpers\Icon;
 				]
 			],
 			[
+				'active' => $model->type == 'text',
 				'label' => 'Import From Text',
 				'content' => Html::tag('div', "<br>".$form->field($model, 'raw_data[text]')->textarea([
 					'placeholder' => "Paste raw data here in the form you chose above",
@@ -117,6 +119,7 @@ use nitm\helpers\Icon;
 				]
 			],
 			[
+				'active' => $model->type == 'url',
 				'label' => 'Import From URL',
 				'content' => Html::tag('div', "<br>".$form->field($model, 'raw_data[url]')->textarea([
 					'placeholder' => "Paste url to acquire data from",
@@ -138,6 +141,7 @@ use nitm\helpers\Icon;
 				]
 			],
 			[
+				'active' => $model->type == 'api',
 				'label' => 'Import From API',
 				'content' => Html::tag('div', "<br>".$form->field($model, 'raw_data[api]')->textarea([
 					'placeholder' => "Enter options for the API",

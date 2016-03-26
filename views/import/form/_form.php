@@ -11,7 +11,10 @@ use nitm\helpers\Icon;
 
 $formOptions = array_replace_recursive($formOptions, [
 	'action' => ($model->getIsNewRecord()) ? '/import/create' : '/import/update/'.$model->getId(),
-	'type' => ActiveForm::TYPE_HORIZONTAL,
+	'type' => ActiveForm::TYPE_VERTICAL,
+	'formConfig' => [
+		'showLabels' => false,
+	],
 	'enableAjaxValidation' => true,
 	'enableClientValidation' => true,
 	'validateOnSubmit' => true,
@@ -34,26 +37,27 @@ $formOptions = array_replace_recursive($formOptions, [
 		<?php $form = include(\Yii::getAlias("@nitm/importer/views/layouts/form/header.php")); ?>
         <?=
             $form->field($model, 'name', [
-                'options' => [
+                'inputOptions' => [
                     'placeholder' => 'Name this import',
-					'class' => !$model->isNewRecord ? 'disabled' : ''
                 ]
             ]);
         ?>
         <?=
             $form->field($model, 'data_type', [
-                'options' => [
+                'inputOptions' => [
                     'placeholder' => 'Select Data Type',
                     'role' => 'selectDataType',
+					'disabled' => !$model->isNewRecord,
 					'class' => !$model->isNewRecord ? 'disabled' : ''
                 ]
             ])->dropDownList(\Yii::$app->getModule('nitm-importer')->getTypes('name'))->label("Data Contains");
         ?>
         <?=
             $form->field($model, 'type', [
-                'options' => [
+                'inputOptions' => [
                     'placeholder' => 'Select Source Type',
                     'role' => 'selectType',
+					'disabled' => !$model->isNewRecord,
 					'class' => !$model->isNewRecord ? 'disabled' : ''
                 ]
             ])->dropDownList(\Yii::$app->getModule('nitm-importer')->getParsers('name'))->label("Data Format");
@@ -77,6 +81,8 @@ $formOptions = array_replace_recursive($formOptions, [
        	<?php endif; ?>
         <?php if($model->isNewRecord): ?>
             <?= $this->render("source.php", ['form' => $form, 'model' => $model]); ?>
+		<?php else: ?>
+            <?= $this->render("update-source.php", ['form' => $form, 'model' => $model]); ?>
         <?php endif; ?>
         <?php
             ActiveForm::end();

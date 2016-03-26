@@ -2,16 +2,15 @@
     "name": "mhdevnet/yii2-importer",
     "description": "This is the importer module that allows you to import data ffrom various sources",
     "type": "yii2-extension",
-    "keywords": ["yii2","extension"],
+    "keywords": ["yii2", "extension"],
     "license": "GPL-3.0+",
-    "authors": [
-        {
-            "name": "NITM",
-            "email": "admin@ninjasitm.com"
-        }
-    ],	
-   "require": {
-	"mhdevnet/yii2-module": "*"
+    "authors": [{
+        "name": "NITM",
+        "email": "admin@ninjasitm.com"
+    }],
+    "require": {
+        "mhdevnet/yii2-module": "*",
+        "trntv/yii2-aceeditor": "*"
     },
     "autoload": {
         "psr-4": {

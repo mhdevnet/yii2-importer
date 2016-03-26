@@ -57,14 +57,13 @@ class Source extends BaseImported
 
 	public function validateSource($attribute, $params)
 	{
-		if($this->type == 'json') {
+		switch($this->type)
+		{
+			case 'json':
+			case 'api':
 			if(json_decode($this->$attribute, true) == null)
-				$this->addError($attribute."_".$this->source, "You chose a json source but the data isn't valid json");
-		}
-
-		if($this->source == 'api') {
-			if(json_decode($this->$attribute, true) == null)
-				$this->addError($attribute."_".$this->source, "You chose an API but the config provided is not valid json");
+				$this->addError($attribute."_".$this->source, "You chose a ".$this->type." source but the data isn't valid json");
+			break;
 		}
 	}
 
@@ -75,7 +74,8 @@ class Source extends BaseImported
 
 	public function setParams()
 	{
-		if(($decoded = json_decode(ArrayHelper::getValue($this->raw_data, $this->source, '{{}'), true)) !== null)
+		$default = empty($this->raw_data) ? '{{}' : $this->raw_data;
+		if(($decoded = json_decode(ArrayHelper::getValue($this->raw_data, $this->source, $default), true)) !== null)
 			$this->raw_data = $decoded;
 		else
 			$this->raw_data = ArrayHelper::getValue($this->raw_data, $this->source, $this->raw_data);

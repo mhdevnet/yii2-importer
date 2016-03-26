@@ -5,7 +5,7 @@ use kartik\grid\GridView;
 use yii\helpers\Html;
 use yii\helpers\ArrayHelper;
 use nitm\helpers\Icon;
-use nitm\models\imported\Element;
+use nitm\importer\models\Element;
 
 $form = ActiveForm::begin([
 	'action' => '/import/elements/',

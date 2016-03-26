@@ -42,29 +42,29 @@ class FactualParser extends JsonParser
 		return $this->_queryLimit;
 	}
 
-	public function parse($data=[], $offset=0, $limit=150)
+	public function parse($data=[], $offset=0, $limit=50)
 	{
 		//$this->setData(json_decode('{"type":"places-us","fields":{"category_ids":["312"], "region":"NY", "country":"us"}}', true));
 		$this->handle();
 		/**
 		 * Get up to $this->_maxLimit entries
 		 */
-		if($this->getOffset() > $this->_maxLimit)
+		if($this->offset > $this->_maxLimit)
 			return null;
-		if(($this->getOffset() + $this->getLimit()) >= $this->_maxLimit)
+		if(($this->offset + $this->limit) >= $this->_maxLimit)
 			/**
 			 * If the offset minus the maxLimit is still greater than the maxLimit
 			 * then return an empty value
 			 */
-			if($this->getOffset() - $this->_maxLimit > 0)
+			if($this->offset - $this->_maxLimit > 0)
 				return null;
 			else
-				$this->setLimit($this->_maxLimit - $this->getOffset());
+				$this->setLimit($this->_maxLimit - $this->offset);
 		/**
 		 * Made it this far. Now need to pull factual data and parse it;
 		 */
 		$this->parsedData = [];
-		while(($this->getOffset() < $this->_maxLimit) && ((($data = $this->read()) != false)))
+		while(($this->offset < $this->_maxLimit) && ((($data = $this->read()) != false)))
 		{
 			if(!isset($this->fields))
 				$this->fields = array_keys(current($data));
@@ -73,7 +73,7 @@ class FactualParser extends JsonParser
 				$this->parsedData = array_merge($this->parsedData, $data);
 
 			unset($data);
-			$this->seek($this->getOffset());
+			$this->seek($this->offset);
 		}
 		return $this;
 	}
@@ -89,20 +89,20 @@ class FactualParser extends JsonParser
 
 	protected function seek()
 	{
-		$this->setOffset($this->getOffset() + $this->getLimit());
-		return $this->getQuery()->offset($this->getOffset());
+		$this->setOffset($this->offset + $this->limit);
+		return $this->query->offset($this->offset);
 	}
 
 	protected function read()
 	{
-		return $this->handle()->fetch($this->getData('type'), $this->getQuery())->getData();
+		return $this->handle()->fetch($this->getData('type'), $this->query)->getData();
 	}
 
 	protected function getQuery()
 	{
 		if(!$this->_query instanceof \FactualQuery) {
 			$this->_query = new \FactualQuery();
-			$this->_query->limit($this->getQueryLimit());
+			$this->_query->limit($this->queryLimit);
 			$this->setAt();
 			$this->setWithin();
 			$this->setFilters();

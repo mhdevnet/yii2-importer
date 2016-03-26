@@ -2,16 +2,16 @@
 
 namespace nitm\importer\controllers;
 
-use nitm\models\imported\Source;
-use nitm\models\imported\search\Source as SourceSearch;
-use nitm\models\imported\Element;
-use nitm\models\imported\search\Element as ElementSearch;
+use nitm\importer\models\Source;
+use nitm\importer\models\search\Source as SourceSearch;
+use nitm\importer\models\Element;
+use nitm\importer\models\search\Element as ElementSearch;
 use nitm\helpers\Response;
 use nitm\helpers\Helper;
 use yii\web\UploadedFile;
 use yii\helpers\ArrayHelper;
 
-class ImportController extends \nitm\controllers\DefaultController
+abstract class ImportController extends \nitm\controllers\DefaultController
 {
 	protected $sourceSelectFields = [
 		'id', 'name', 'author_id', 'created_at',
@@ -70,6 +70,11 @@ class ImportController extends \nitm\controllers\DefaultController
 		$this->model = new Source();
 	}
 
+	protected function getImporterModule()
+	{
+		return \Yii::$app->getModule('nitm-importer');
+	}
+
 	protected function getImporter($type=null)
 	{
 		$type = is_null($type) ? $this->model->type : $type;
@@ -106,7 +111,7 @@ class ImportController extends \nitm\controllers\DefaultController
 			'success' => true
 		];
 		$post = \Yii::$app->request->post();
-		$this->model = $this->findModel(Source::className(), $id, [], ['select' => $this->sourceSelectFields]);
+		$this->model = $this->findModel(Source::className(), $id, []);
 		if(!$this->model)
 			return [
 				'success' => false,
@@ -126,19 +131,19 @@ class ImportController extends \nitm\controllers\DefaultController
 			break;
 
 			case 'url':
-			$ret_val['data'] = $this->model->raw_data['url'];
+			$ret_val['data'] = ArrayHelper::getValue($this->model->raw_data, 'url', $this->model->raw_data);
 			break;
 
 			case 'api':
-			$ret_val['data'] = $this->model->raw_data['api'];
+			$ret_val['data'] = ArrayHelper::getValue($this->model->raw_data, 'api', $this->model->raw_data);
 			break;
 
 			default:
-			$ret_val['data'] = $this->model->raw_data['text'];
+			$ret_val['data'] = ArrayHelper::getValue($this->model->raw_data, 'text', $this->model->raw_data);
 			break;
 		}
 
-		if(!\Yii::$app->getModule('nitm')->importer->isSupported($this->model->type))
+		if(!$this->importerModule->isSupported($this->model->type))
 			throw new\yii\base\ErrorException("Unsupported type: ".$this->model->type);
 
 		return $ret_val;
@@ -150,8 +155,8 @@ class ImportController extends \nitm\controllers\DefaultController
 			'select' => $this->sourceSelectFields
 		]);
 
-		$this->getProcessor()->limit = \yii::$app->getModule('nitm-importer')->limit;
-		$this->getProcessor()->batchSize = \yii::$app->getModule('nitm-importer')->batchSize;
+		$this->getProcessor()->limit = $this->importerModule->limit;
+		$this->getProcessor()->batchSize = $this->importerModule->batchSize;
 
 		return $this->actionImportAll($id, true);
 	}
@@ -170,7 +175,7 @@ class ImportController extends \nitm\controllers\DefaultController
 				'select' => $this->sourceSelectFields
 			]);
 			$this->getProcessor()->limit = 1000;
-			$this->getProcessor()->batchSize = \yii::$app->getModule('nitm-importer')->batchSize;
+			$this->getProcessor()->batchSize = $this->importerModule->batchSize;
 		}
 
 		$this->getProcessor()->setJob($this->model);
@@ -223,8 +228,8 @@ class ImportController extends \nitm\controllers\DefaultController
 		]);
 		$this->model->setFlag('source-where', ['ids' => $elementIds]);
 
-		$this->getProcessor()->limit = \yii::$app->getModule('nitm-importer')->limit;
-		$this->getProcessor()->batchSize = \yii::$app->getModule('nitm-importer')->batchSize;
+		$this->getProcessor()->limit = $this->importerModule->limit;
+		$this->getProcessor()->batchSize = $this->importerModule->batchSize;
 		$this->getProcessor()->offset = $this->model->getElementsArray()
 			->where([
 				'is_imported' => true
@@ -290,7 +295,7 @@ class ImportController extends \nitm\controllers\DefaultController
 		switch($type)
 		{
 			case 'update':
-			$this->model = $this->findModel($this->model->className(), $id, ['author'], ['select' => Source::selectFields()]);
+			$this->model = $this->findModel($this->model->className(), $id, ['author']);
 			/*$options = [
 				//'provider' => 'elementsArray'
 				'provider' => ['elementsArray', function ($objects) {

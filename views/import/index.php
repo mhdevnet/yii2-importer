@@ -134,9 +134,9 @@ use nitm\helpers\Icon;
 						'size' => 'x-large',
 						'toggleButton' => [
 							'tag' => 'a',
-							'label' => Icon::forAction('view'),
+							'label' => Icon::forAction('update'),
 							'href' => \Yii::$app->urlManager->createUrl([$url, '__format' => 'modal']),
-							'title' => Yii::t('yii', 'View '),
+							'title' => Yii::t('yii', 'Update '),
 							'class' => 'fa-2x',
 							'role' => 'dynamicAction updateAction disabledOnClose',
 						],
