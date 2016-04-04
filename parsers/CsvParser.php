@@ -8,6 +8,7 @@
 namespace nitm\importer\parsers;
 
 use \SplFileObject;
+use \ArrayIterator;
 
 /**
  * CsvParser parses a CSV file.
@@ -16,14 +17,28 @@ class CsvParser extends BaseParser
 {
 	private $_handle;
 	private $_isFile = false;
+	private $shouldAddId;
 
-	public function parse($data, $offset = 0, $limit = 150)
+	protected function prepareData($data)
+	{
+		if(is_string($data)) {
+			$this->data = explode("\n", $data);
+		} else {
+			$this->data = $data;
+		}
+	}
+
+	public function parse($rawData, $offset = 0, $limit = 150, $options=[])
 	{
 		$this->parsedData = null;
-		$this->data = $data;
+		$this->prepareData($rawData);
 		if(!count($this->fields))
-			if(($firstLine = $this->read()) !== false)
+			if(($firstLine = $this->read()) !== false) {
 				$this->fields = $firstLine;
+				$this->shouldAddId = empty(array_intersect($this->fields, ['id', '_id']));
+				if($this->shouldAddId)
+					array_unshift($this->fields, '_id');
+			}
 		else
 			$this->seek($offset);
 
@@ -31,6 +46,8 @@ class CsvParser extends BaseParser
 		while((($line <= ($limit+$offset)) && !$this->isEnd()) && ((($data = $this->read()) != false)))
 		{
 			$data = array_filter($data);
+			if($this->shouldAddId)
+				array_unshift($data, null);
 			if(count($data) >= 1)
 				$this->parsedData[] = $data;
 			unset($data);
@@ -41,19 +58,17 @@ class CsvParser extends BaseParser
 
 	protected function isEnd()
 	{
-		if($this->_isFile)
-			!$this->handle()->valid();
+		return !$this->handle()->valid();
 	}
+
 	protected function next()
 	{
-		if($this->_isFile)
-			$this->handle()->next();
+		return $this->handle()->next();
 	}
 
 	protected function seek($to)
 	{
-		if($this->_isFile)
-			$this->handle()->seek($to);
+		return $this->handle()->seek($to);
 	}
 
 	protected function read()
@@ -61,10 +76,12 @@ class CsvParser extends BaseParser
 		$this->handle();
 		if($this->_isFile) {
 			$ret_val = $this->handle($this->data)->fgetcsv( ',', '"');
-			return $ret_val;
 		}
-		else
-			return str_getcsv($this->data, $this->limit, ',', '"');
+		else {
+			$ret_val = is_array($this->handle()->current()) ? $this->handle()->current() : str_getcsv($this->handle()->current(), ',', '"');
+			$this->handle()->next();
+		}
+		return array_map('trim', $ret_val);
 	}
 
 	public function handle($path=null)
@@ -73,11 +90,13 @@ class CsvParser extends BaseParser
 			return $this->_handle;
 
 		$path = is_null($path) ? $this->data : $path;
-		$this->_isFile = file_exists($path);
+		$this->_isFile = is_string($path) && file_exists($path);
 
 		if($this->_isFile && !is_object($this->_handle)) {
 			$this->_handle = new SplFileObject($path, 'r');
 			$this->_handle->setFlags(SplFileObject::SKIP_EMPTY);
+		} else {
+			$this->_handle = new ArrayIterator($this->data);
 		}
 
 		return $this->_handle;

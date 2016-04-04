@@ -49,6 +49,7 @@ $importSubmit = Html::tag('div',
 
 	$this->registerJs('$nitm.onModuleLoad("import", function (module) {
 		module.initElementImport();
+		module.initUpdateElement();
 		module.initElementImportForm();
 	})');
 ?>
@@ -117,7 +118,7 @@ $importSubmit = Html::tag('div',
         'actionColumn' => [
             'buttons' => [
                 'element' => function ($url, $model) {
-                    if(!$model['is_imported'])
+                    if(ArrayHelper::getValue($model, 'is_imported', false) !== true)
                         return \yii\helpers\Html::a(Icon::forAction('upload'), \Yii::$app->urlManager->createUrl([$url, '__format' => 'json']), [
                             'title' => Yii::t('yii', 'Import'),
                             'class' => 'fa-2x',
@@ -126,12 +127,20 @@ $importSubmit = Html::tag('div',
                     else
                         return Icon::show('thumbs-up', ['class' => 'text-success fa-2x']);
                 },
+                'update-element' => function ($url, $model, $index) {
+                    if(ArrayHelper::getValue($model, 'is_imported', false) !== true)
+                        return \yii\helpers\Html::a(Icon::forAction('save'), \Yii::$app->urlManager->createUrl(['/import/update-element/'.$model['id'], '__format' => 'json']), [
+                            'title' => Yii::t('yii', 'Update Element'),
+                            'class' => 'fa-2x',
+                            'role' => 'updateElement',
+							'data-item-key' => $index
+                        ]);
+                },
             ],
-            'template' => "{element}",
+            'template' => "{element} {update-element}",
             'urlCreator' => function($action, $array, $key, $index) use($model) {
-                $id = ArrayHelper::getValue($array, 'id', null);
+                $id = ArrayHelper::getValue($array, 'id', ArrayHelper::getValue($array, '_id', null));
                 $type = is_null($id) ? $model->getId() : 'element';
-                $id = is_null($id) ? @$array['_id'] : $id;
                 return '/import/'.$action.'/'.$type.'/'.$id;
             },
             'options' => [

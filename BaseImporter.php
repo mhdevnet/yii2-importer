@@ -4,13 +4,13 @@ namespace nitm\importer;
 
 use yii\helpers\ArrayHelper;
 use nitm\helpers\Cache;
-use nitm\models\imported\Source;
-use pickledup\models\Entity;
+use nitm\importer\models\Source;
 
-class BaseImporter extends \yii\base\Model
+abstract class BaseImporter extends \yii\base\Model
 {
 	public $name;
 	public $elements;
+	public $class;
 	public $mode = 'single';
 	public $jobType = 'elements';
 	public $offset = 0;
@@ -48,6 +48,28 @@ class BaseImporter extends \yii\base\Model
 		return static::$_fields;
 	}
 
+	/**
+	 * Perform functions after each insert of a model
+	 * @param mixed $data
+	 * @param mixed $from
+	 */
+	protected function afterInserModels(&$data, &$from) {}
+
+	/**
+	 * Prepare the models by finding existing and inserting new parts, populating them, updating the local modele and inserting the new data
+	 * @param mixed $from
+	 */
+	abstract public function prepareModels($from);
+
+	/**
+	 * Prepare a single model
+	 * @param #data the model data
+	 * @param string $modelClass The model class
+	 * @param string $searchClass
+	 * @return array
+	 */
+	abstract public function prepareModel($data, $modelClass, $searchClass);
+
 	protected static function getIndexBy($for=null)
 	{
 		return 'id';
@@ -73,7 +95,7 @@ class BaseImporter extends \yii\base\Model
 		return \Yii::$app->getModule('nitm-importer')->getParser($this->job->type);
 	}
 
-	public function setRawData(array $data, $append = false)
+	public function setRawData($data, $append = false)
 	{
 		if(!$append)
 			$this->job->raw_data = $data;
@@ -159,7 +181,6 @@ class BaseImporter extends \yii\base\Model
 	{
 		if(!$this->_isPrepared)
 			return;
-
 		foreach($this->getPreparedData(0) as $chunkId=>$chunk)
 		{
 			$chunk = $this->getAllParts($chunk);
@@ -168,7 +189,7 @@ class BaseImporter extends \yii\base\Model
 		unset($raw_data, $chunk);
 		/**
 		* Probably want to cache the job data here;
-		* Probably want to use cache the whoel way 0_0;
+		* Probably want to use cache the whole way 0_0;
 		*/
 		return true;
 	}
@@ -179,7 +200,7 @@ class BaseImporter extends \yii\base\Model
 		for($i = 0; $i<$this->chunks; $i++)
 		{
 			$preparedData = $this->getPreparedData($i);
-			if(!is_array($preparedData) || !count($preparedData) >= 1)
+			if(!is_array($preparedData) || !count($preparedData))
 				continue;
 
 			$preparedData = $this->prepareModels($preparedData);
@@ -267,7 +288,7 @@ class BaseImporter extends \yii\base\Model
 		switch($job)
 		{
 			case 'data':
-			$query = $this->job->elementsArray;
+			$query = $this->job->getElementsArray();
 			foreach($query->select(['raw_data', 'id'])
 				->limit($this->limit)
 				->offset($this->offset)
@@ -369,8 +390,8 @@ class BaseImporter extends \yii\base\Model
 		$this->job->raw_data = [];
 
 		 Source::updateAll([
-			'count' => $this->job->elements->where(['is_imported' => true])->count(),
-			'total' => $this->job->elements->count(),
+			'count' => $this->job->getElements()->where(['is_imported' => true])->count(),
+			'total' => $this->job->getElements()->count(),
 		], [
 			'id' => $this->job->id
 		]);
@@ -380,8 +401,10 @@ class BaseImporter extends \yii\base\Model
 		$this->_isPrepared = false;
 	}
 
-	protected function findModel($class, $condition, $key, $queryOptions=[])
+	protected function findModel($class, $condition, $key, $queryOptions=[], $many=false)
 	{
+		if(!is_subclass_of($class, \nitm\search\BaseSearch::className()))
+			$class = (new $class)->searchClass;
 		$search = new $class([
 			'inclusiveSearch' => true,
 			'booleanSearch' => true,
@@ -400,15 +423,15 @@ class BaseImporter extends \yii\base\Model
 
 			if(is_a($existing, $class)) {
 				$cacheFunc = $many ? 'setCachedModelArray' : 'setCachedModel';
-				Cache::$cacheFunc($key, $existing);
+				Cache::setCachedModel($key, $existing);
 				return $existing;
 			}
 			else {
 				$class = $search->primaryModelClass;
 				$condition = $many ? $condition : [$condition];
 				$ret_val = array_map(function ($attributes) use($class, $queryOptions) {
-					return (ArrayHelper::getValue($queryOptions, 'asArray', false) === true) ? $condition : new $class($attributes);
-				});
+					return (ArrayHelper::getValue($queryOptions, 'asArray', false) === true) ? $attributes : new $class($attributes);
+				}, $condition);
 				return $many ? $ret_val : array_pop($ret_val);
 			}
 		}
@@ -420,7 +443,7 @@ class BaseImporter extends \yii\base\Model
 		$model->setScenario('create');
 		$model->setAttributes($attributes);
 		if($model->hasAttribute('slug'))
-			$model->setAttribute('slug', Entity::getSlug($title));
+			$model->setAttribute('slug', \yii\helpers\Inflector::slug($title));
 		$model->save();
 		if(\Yii::$app->db->lastInsertID)
 			$model->id = \Yii::$app->db->lastInsertID;

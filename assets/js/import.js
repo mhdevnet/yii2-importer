@@ -10,6 +10,12 @@ class Import extends NitmEntity {
 			}
 		};
 
+		this.inputs = {
+			roles: [
+				"[role~='selectType']", "[role~='selectDataType']", "[role~='dataSource']"
+			]
+		};
+
 		this.buttons = {
 			create: 'newImport',
 			remove: 'removeImport',
@@ -28,6 +34,7 @@ class Import extends NitmEntity {
 			sourceInput: "[role~='sourceNameInput']",
 			preview: "[role~='previewImport']",
 			element: "[role~='importElement']",
+			update: "[role~='updateElement']",
 		};
 		this.defaultInit = [
 			'initForms',
@@ -40,15 +47,18 @@ class Import extends NitmEntity {
 		$(this.links.source).each((i, elem) => {
 			let $elem = $(elem);
 			$elem.on('click', (event) =>  {
-				$(this.views.source).each(function() {
-					$(event.currentTarget).html($elem.data('source'));
-				});
-				$(this.views.sourceInput).each(function() {
-					$(event.currentTarget).val($elem.data('source'));
-				});
+				$(this.views.source).html($elem.data('source'));
+				$(this.views.sourceInput).val($elem.data('source'));
 			});
 		});
 	}
+
+    getContainer(containerId) {
+		containerId = containerId || this.views.listFormContainerId;
+		if(!$(containerId).length)
+			containerId = this.views.containerId;
+		return containerId;
+    };
 
 	initPreview () {
 		$("form[role~='"+this.forms.roles.create+"']").on('reset', (event) => {
@@ -59,10 +69,15 @@ class Import extends NitmEntity {
 	afterCreate (result, currentIndex, form) {
 		//Change the form to update the source since the source gets created on preview
 		var message = result.message || "Success! You can import specific records in this dataset below";
-		$nitm.trigger('notify', [message, $nitm.classes.success, form]);
+		$nitm.trigger('notify', [message, this.classes.success, form]);
 		if(result.success) {
-			$(form).attr('action', result.url);
-			$(form).data('id', result.id);
+			let $form = $(form);
+			$.get(result.url, (result) => {
+				$form.attr('action', result.form.action);
+				$form.data('id', result.id);
+				$form.find(this.inputs.roles.split(',')).addClass('disabled').attr('disabled', true);
+				$form.find(this.views.preview).html(result);
+			});
 		}
 	}
 
@@ -70,6 +85,16 @@ class Import extends NitmEntity {
 		$(this.views.preview).html(result.data);
 		$(form).find(':submit').text("Import");
 		$(form).find("table tbody.files").empty();
+	}
+
+	afterElementImport (result, elem) {
+		if(result.success || result.exists) {
+			let $elem = $(elem);
+			$elem.parents('tr').addClass(this.classes[result.class]);
+			$elem.addClass('disabled');
+			$elem.html(result.icon);
+			$elem.on('click', (event) =>  { event.preventDefault(); return false});
+		}
 	}
 
 	initElementImportForm (containerId){
@@ -89,16 +114,6 @@ class Import extends NitmEntity {
 		});
 	}
 
-	afterElementImport (result, elem) {
-		if(result.success || result.exists) {
-			let $elem = $(elem);
-			$elem.parents('tr').addClass(this.classes[result.class]);
-			$elem.addClass('disabled');
-			$elem.html(result.icon);
-			$elem.on('click', (event) =>  { event.preventDefault(); return false});
-		}
-	}
-
 	initElementImport (containerId){
 		let $container = $nitm.getObj(containerId || this.views.preview);
 		$container.find(this.views.element).each((i, elem) => {
@@ -111,11 +126,25 @@ class Import extends NitmEntity {
 		});
 	}
 
+	initUpdateElement (containerId){
+		let $container = $nitm.getObj(containerId || this.views.preview);
+		$container.find(this.views.update).each((i, elem) => {
+			let $elem = $(elem);
+			$elem.on('click', (e) =>  {
+				e.preventDefault();
+				this.updateElement($elem.get(0));
+			});
+		});
+	}
+
 	importElement (elem){
 		let $elem = $(elem);
 		$.post($elem.attr('href'), (result) => {
-			$nitm.trigger('stop-spinner', [$elem]);
 			this.afterElementImport(result, $elem.get(0));
+		}).always((result, status, error) => {
+			$nitm.trigger('stop-spinner', [$elem]);
+		}).error((result, status, error) => {
+			$nitm.trigger('notify', [error, 'danger', elem]);
 		});
 	}
 
@@ -126,6 +155,25 @@ class Import extends NitmEntity {
 			if(result.success) {
 				$nitm.trigger('notify', [result.message, result.class, form]);
 			}
+		});
+	}
+
+	updateElement (elem){
+		let $elem = $(elem),
+			$container = $('tr[data-key="'+$elem.data('item-key')+'"]'),
+			$inputs = $container.find(':input');
+		let $form = $("<form method='post' action='"+$elem.attr('href')+"'>");
+		$inputs.each((i, input) => {
+			let $input = $(input),
+				name = $input.attr('name').substr($input.attr('name').indexOf('['));
+			$form.append("<input name='Element"+name+"' value='"+$input.val()+"'>")
+		});
+		$nitm.trigger('start-spinner', [$elem]);
+		return this.operation($form.get(0), function(result) {
+			if(result.success) {
+				$nitm.trigger('notify', [result.message, result.class, elem]);
+			}
+			$nitm.trigger('stop-spinner', [$elem]);
 		});
 	}
 

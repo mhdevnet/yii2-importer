@@ -4,8 +4,9 @@ use yii\helpers\Html;
 
 $context = $this->context;
 ?>
-    <!-- The file upload form used as target for the file upload widget -->
-    <!-- The fileupload-buttonbar contains buttons to add/delete files and start/cancel the upload -->
+<!-- The file upload form used as target for the file upload widget -->
+<!-- The fileupload-buttonbar contains buttons to add/delete files and start/cancel the upload -->
+<div class="wrapper">
     <div class="row fileupload-buttonbar">
         <div class="col-lg-7">
             <!-- The fileinput-button span is used to style the file input field as button -->
@@ -42,3 +43,4 @@ $context = $this->context;
     </div>
     <!-- The table listing the files available for upload/download -->
     <table role="presentation" class="table table-striped"><tbody class="files"></tbody></table>
+</div>

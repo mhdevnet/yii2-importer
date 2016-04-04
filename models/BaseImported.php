@@ -25,24 +25,26 @@ class BaseImported extends \nitm\models\Entity
 
 	public function encode($data=null)
 	{
-		if(is_null($data))
+		if(is_null($data)) {
 			$this->raw_data = is_array($this->raw_data) ? json_encode(\yii\helpers\ArrayHelper::toArray($this->raw_data)) : $this->raw_data;
-		else
+			return $this->raw_data;
+		} else
 			return json_encode(\yii\helpers\ArrayHelper::toArray($data));
 	}
 
 	public function decode($data=null)
 	{
-		if(is_null($data))
+		if(is_null($data)) {
 			$this->raw_data = is_string($this->raw_data) ? json_decode($this->raw_data, true) : $this->raw_data;
-		else
+			return $this->raw_data;
+		} else
 			return json_decode($data, true);
 	}
 
 	public function getSignature($data=null)
 	{
-		$data = is_null($data) ? (is_array($this->raw_data) ? json_encode($this->raw_data) : $this->raw_data) : $data;
-		return md5(serialize($data));
+		$data = is_null($data) ? (is_array($this->raw_data) ? json_encode($this->raw_data) : $this->raw_data) : json_encode($data);
+		return md5($data);
 	}
 
 	public static function has()

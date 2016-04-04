@@ -3,20 +3,18 @@
 use yii\helpers\Html;
 use yii\bootstrap\Tabs;
 use kartik\widgets\ActiveForm;
-use dosamigos\fileupload\FileUploadUI;
-use dosamigos\fileupload\FileUpload;
+use kartik\file\FileInput;
 use nitm\helpers\Icon;
 
 ?>
 <div>
 <?=
-	Html::tag('label', "Importing From ", [
-		'class' => 'control-label col-md-2 col-lg-2'
-	])
-	.Html::tag('h5', 'file', [
+	Html::tag('label', "Importing From: ", [
+		'class' => 'control-label'
+	])."&nbsp;".Html::tag('span', 'file', [
 		'id' => 'import-location',
 		'role' => 'sourceName',
-		'class' => 'strong text-info col-lg-10 col-md-10'
+		'class' => 'text-info strong'
 	]);
 ?>
 </div>
@@ -36,49 +34,10 @@ use nitm\helpers\Icon;
 				'active' => $model->type == 'file',
 				'label' => 'Import From File',
 				'content' => Html::tag('div',
-					"<br>".FileUploadUI::widget([
-						"formView" => "@nitm/views/import/form/fileupload",
-						'model' => $model,
-						'attribute' => 'raw_data[file]',
-						'url' => ['preview'], // your url, this is just for demo purposes,
+					"<br>".$form->field($model, 'raw_data[file]')->widget(FileInput::className(), [
 						'options' => [
-							'accept' => 'text/*',
-							'id' => 'source-import',
-							'name' => 'raw_data[file]'
-						],
-						'clientOptions' => [
-							'limitMultipleFileUploads' => 2,
-							'maxFileSize' => 200000000
-						],
-						// Also, you can specify jQuery-File-Upload events
-						// see: https://github.com/blueimp/jQuery-File-Upload/wiki/Options#processing-callback-options
-						'clientEvents' => [
-							'fileuploaddone' => 'function(e, data) {
-								$nitm.module("import").afterPreview(data.result, "import", e.target, data.fileInput);
-							}',
-							'fileuploadfail' => 'function(e, data) {
-								$([role="fileUploadMessage"]).html(data.message);
-							}',
-							'fileuploadadd' => 'function (e, data) {
-								//Only submit if the form is validated properly
-								var $activeForm = $("#'.$form->id.'").yiiActiveForm();
-								$activeForm.yiiActiveForm("data").submitting = true;
-								$activeForm.yiiActiveForm("validate");
-							}',
-							'fileuploadsubmit' => 'function(e, data) {
-								//Only submit if the form is validated properly
-								var $activeForm = $("#'.$form->id.'").yiiActiveForm();
-
-								data.context.find(":submit").prop("disabled", false);
-								//Change the URL to the URL of the newly created import Source
-								$(data.form).fileupload("option",
-									"url",
-									$activeForm.attr("action")
-								);
-
-								var validated = $activeForm.yiiActiveForm("data").validated;
-								return validated && ($activeForm.data("id") != undefined);
-							}'
+							'accept' => 'text/csv',
+							'role' => 'dataSource'
 						],
 					]), [
 					'id' => 'import-from-file',
@@ -100,8 +59,9 @@ use nitm\helpers\Icon;
 				'active' => $model->type == 'text',
 				'label' => 'Import From Text',
 				'content' => Html::tag('div', "<br>".$form->field($model, 'raw_data[text]')->textarea([
-					'placeholder' => "Paste raw data here in the form you chose above",
-					'id' => 'source-raw_data_text'
+					'placeholder' => "Paste raw data in the format you chose above",
+					'id' => 'source-raw_data_text',
+					'role' => 'dataSource'
 				])->label("Text"), [
 					'id' => 'import-from-csv',
 					'class' => 'col-md-12 col-lg-12'
@@ -123,7 +83,8 @@ use nitm\helpers\Icon;
 				'label' => 'Import From URL',
 				'content' => Html::tag('div', "<br>".$form->field($model, 'raw_data[url]')->textarea([
 					'placeholder' => "Paste url to acquire data from",
-					'id' => 'source-raw_data_url'
+					'id' => 'source-raw_data_url',
+					'role' => 'dataSource'
 				])->label("Url"), [
 					'id' => 'import-from-url',
 					'class' => 'col-md-12 col-lg-12'
@@ -145,7 +106,8 @@ use nitm\helpers\Icon;
 				'label' => 'Import From API',
 				'content' => Html::tag('div', "<br>".$form->field($model, 'raw_data[api]')->textarea([
 					'placeholder' => "Enter options for the API",
-					'id' => 'source-raw_data_api'
+					'id' => 'source-raw_data_api',
+					'role' => 'dataSource'
 				])->label("Options"), [
 					'id' => 'import-from-api',
 					'class' => 'col-md-12 col-lg-12'

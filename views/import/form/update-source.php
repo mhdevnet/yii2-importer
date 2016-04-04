@@ -10,6 +10,7 @@ use nitm\helpers\Icon;
 switch($model->type) {
 	case 'factual':
 	case 'json':
+	case 'csv':
 	$mode = 'json';
 	$model->raw_data = json_encode(json_decode($model->raw_data, true), JSON_PRETTY_PRINT);
 	break;

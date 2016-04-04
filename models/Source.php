@@ -48,12 +48,31 @@ class Source extends BaseImported
         return array_merge(parent::rules(), [
             [['created_at'], 'safe'],
             [['name', 'type', 'data_type'], 'required', 'on' => ['create', 'update']],
-            [['name', 'type', 'data_type'], 'string'],
+            [['name', 'type', 'data_type', 'remote_type'], 'string'],
+            [['remote_id'], 'integer'],
 			[['name'], 'unique', 'targetAttribute' => ['name', 'type', 'data_type']],
-			[['raw_data'], 'validateSource', 'on' => ['create']],
-			[['raw_data'], 'required', 'on' => ['create'], "message" => 'You did not provide data for the chosen data source']
+			[['raw_data'], 'validateSource'],
+			[['raw_data'], 'filter', 'filter' => [$this, 'convertSource'], 'on' => ['create']]
         ]);
     }
+
+	public function convertSource($value)
+	{
+		switch($this->type)
+		{
+			case 'csv':
+			/*$value = json_encode([
+				'text' => $value
+			]);*/
+			$parser = \Yii::$app->getModule('nitm-importer')->getParser($this->type);
+			$parser->parse($value);
+			$value = json_encode([
+				'text' => explode("\n", $value)
+			]);
+			break;
+		}
+		return $value;
+	}
 
 	public function validateSource($attribute, $params)
 	{
@@ -61,8 +80,13 @@ class Source extends BaseImported
 		{
 			case 'json':
 			case 'api':
-			if(json_decode($this->$attribute, true) == null)
-				$this->addError($attribute."_".$this->source, "You chose a ".$this->type." source but the data isn't valid json");
+			if(json_decode($this->$attribute[$this->type], true) == null)
+				$this->addError($attribute, "You chose a ".$this->type." source but the data isn't valid json");
+			break;
+
+			case 'text':
+			if(!strlen($this->$attribute[$this->type], true))
+				$this->addError($attribute, "You chose a ".$this->type." source but the data isn't valid text");
 			break;
 		}
 	}
@@ -75,8 +99,9 @@ class Source extends BaseImported
 	public function setParams()
 	{
 		$default = empty($this->raw_data) ? '{{}' : $this->raw_data;
-		if(($decoded = json_decode(ArrayHelper::getValue($this->raw_data, $this->source, $default), true)) !== null)
-			$this->raw_data = $decoded;
+		$this->raw_data = is_array($this->raw_data) ? $this->raw_data : json_decode($this->raw_data, true);
+		if($this->raw_data !== null)
+			$this->raw_data = ArrayHelper::getValue($this->raw_data, $this->source, $default);
 		else
 			$this->raw_data = ArrayHelper::getValue($this->raw_data, $this->source, $this->raw_data);
 	}
@@ -103,10 +128,10 @@ class Source extends BaseImported
 	{
 		return [
 			'import' => ['count'],
-			'create' => ['name', 'raw_data', 'type', 'data_type', 'source', 'total'],
+			'create' => ['name', 'raw_data', 'type', 'data_type', 'source', 'total', 'remote_type', 'remote_id'],
 			'update' => ['name', 'type', 'data_type', 'raw_data' , 'total'],
 			'delete' => ['id'],
-			'preview' => ['raw_data', 'total'],
+			'preview' => ['raw_data', 'total', 'count'],
 			'default' => []
 		];
 	}
@@ -198,7 +223,7 @@ class Source extends BaseImported
 			->select(['id', 'signature', 'is_imported'])
 			->where([
 				'signature' => array_map(function ($row) {
-					return Element::getSignature(Element::encode($row));
+					return Element::getSignature($row);
 				}, $rows),
 				'imported_data_id' => $this->getId()
 			])
@@ -230,13 +255,20 @@ class Source extends BaseImported
 		];
 	}
 
+	public function getRemoteIdentifier()
+	{
+		if(!empty($this->remote_type))
+			return strtolower(implode('-', [$this->remote_type, $this->remote_id]));
+		return null;
+	}
+
 	public function saveElement($attributes, $asArray=false)
 	{
 		$element = new \nitm\importer\models;\Element($attributes);
 		$element->setScenario('create');
 		$existing = Element::find()->where([
 			'imported_data_id' => $this->id,
-			'signature' => $element->getSignature($element->encode($element->raw_data))
+			'signature' => $element->getSignature()
 		])->one();
 		if($existing instanceof Element)
 			$element = $existing;
@@ -248,13 +280,15 @@ class Source extends BaseImported
 
 	public function updateElements($attributes)
 	{
-		foreach($attributes as $element)
+		$attributes = ArrayHelper::index($attributes, 'id');
+		$elements = Element::find()->select('id')->where(['id' => array_keys($attributes)])->all();
+		foreach($elements as $model)
 		{
-			$model = Element::find()->select('id')->where(['id' => $element['id']])->one();
 			if($model instanceof Element)
 			{
 				$model->setScenario('update');
-				$model->load($attributes);
+				unset($attributes[$model->id]['id']);
+				$model->setAttributes($attributes[$model->id]);
 				$model->save();
 			}
 		}
@@ -276,7 +310,7 @@ class Source extends BaseImported
 			$element = array_intersect_key(array_merge($element, [
 				'raw_data' => Element::encode($element['raw_data']),
 				'imported_data_id' => $this->id,
-				'signature' => Element::getSignature(Element::encode($element['raw_data'])),
+				'signature' => Element::getSignature($element['raw_data']),
 				'author_id' => \Yii::$app->user->getId()
 			]), array_flip($fields));
 			ksort($element);

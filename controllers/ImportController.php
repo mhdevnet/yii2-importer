@@ -29,8 +29,9 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				'rules' => [
 					[
 						'actions' => [
-							'preview', 'element', 'elements',
-							'batch', 'import-all', 'import-batch'
+							'element', 'elements',
+							'batch', 'import-all', 'import-batch',
+							'update-element'
 						],
 						'allow' => true,
 						'roles' => ['@'],
@@ -39,9 +40,9 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 			],
 			'verbs' => [
 				'actions' => [
-					'preview' => ['post'],
 					'element' => ['post'],
 					'elements' => ['post'],
+					'update-element' => ['post'],
 					'batch' => ['post'],
 					'import-all' => ['post', 'get'],
 					'import-batch' => ['post', 'get']
@@ -78,12 +79,17 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 	protected function getImporter($type=null)
 	{
 		$type = is_null($type) ? $this->model->type : $type;
-		return \Yii::$app->getModule('nitm-importer')->getParser($type);
+		return $this->importerModule->getParser($type);
 	}
+
 
 	public function getProcessor()
 	{
-		throw new \yii\base\ErrorException("You need to define procesors for this data");
+		if(isset($this->_importer))
+			return $this->_importer;
+		$this->_importer = $this->importerModule->getProcessor($this->model->data_type ?: $this->model->remote_type);
+		$this->_importer->job = $this->model;
+		return $this->_importer;
 	}
 
 	public static function assets()
@@ -105,21 +111,95 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		return parent::actionIndex(SourceSearch::className());
     }
 
-	public function actionPreview($id)
+	public function actionUpdateElement($id)
+	{
+		$ret_val = [
+			'success' => false,
+			'message' => "Couldn't save element"
+		];
+		$this->model = Element::findOne($id);
+		$this->model->decode();
+		$data = ArrayHelper::getValue($_POST, $this->model->formName());
+		if(isset($data['elements']))
+			$data = array_pop($data['elements']);
+		$processor = $this->importerModule->getProcessor($this->model->source->data_type ?: $this->model->source->remote_type);
+		$this->model->raw_data = $processor->getParts(array_replace_recursive($this->model->raw_data, $data));
+		$this->model->encode();
+		$this->model->setScenario('update');
+		if($this->model->save()) {
+			$ret_val['success'] = true;
+			$ret_val['message'] = "Updated element data successfully";
+		} else {
+			$ret_val['message'] = array_map(function ($error) {
+				return implode('. ', $error);
+			}, $this->model->getErrors());
+		}
+		$this->responseFormat = 'json';
+		return $ret_val;
+	}
+
+	/**
+	 * Preview import data. This occurs after an import has been created
+	 * @param  [type] $id [description]
+	 * @return [type]     [description]
+	 */
+	public function actionView($id, $modelClass=null, $options=[])
+	{
+		$this->model = $this->findModel(Source::className(), $id);
+		$formOptions = [
+			'action' => '/import/update/'.$this->model->getId(),
+			'type' => \kartik\widgets\ActiveForm::TYPE_VERTICAL,
+			'formConfig' => [
+				'showLabels' => false,
+			],
+			'enableAjaxValidation' => true,
+			'enableClientValidation' => true,
+			'validateOnSubmit' => true,
+			'options' => [
+				'enctype' => 'multipart/form-data',
+				'role' => "updateImport",
+				'id' => 'import-elements-form-'.$this->model->id
+			]
+		];
+		return parent::actionView($id, null, array_merge([
+			'view' => 'preview',
+			'model' => $this->model,
+			'args' => [
+				'form' => include(\Yii::getAlias("@nitm/importer/views/layouts/form/header.php")),
+				'formOptions' => $formOptions,
+				'processor' => $this->processor,
+				'attributes' => $this->processor->formAttributes(),
+				"dataProvider" => new \yii\data\ActiveDataProvider([
+					'query' => $this->model->getElementsArray(),
+					'pagination' => [
+						'defaultPageSize' => 50,
+						'pageSize' => 50
+					]
+				])
+			]
+		], $options));
+	}
+
+	/**
+	 * Preview import data. This occurs after an import has been created
+	 * @param  [type] $id [description]
+	 * @return [type]     [description]
+	 */
+	public function processSourceData()
 	{
 		$ret_val = [
 			'success' => true
 		];
-		$post = \Yii::$app->request->post();
-		$this->model = $this->findModel(Source::className(), $id, []);
 		if(!$this->model)
 			return [
 				'success' => false,
 				'message' => "The import with the id: $id doesn't exist"
 			];
 
+		if(!$this->importerModule->isSupported($this->model->type))
+			throw new \yii\base\ErrorException("Unsupported type: ".$this->model->type);
+
         $this->model->setScenario('preview');
-		$this->model->load($post);
 		switch($this->model->source)
 		{
 			case 'file':
@@ -143,8 +223,33 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 			break;
 		}
 
-		if(!$this->importerModule->isSupported($this->model->type))
-			throw new\yii\base\ErrorException("Unsupported type: ".$this->model->type);
+		if($this->processor)
+		{
+			$this->processor->job->setParams();
+			if(empty($this->processor->job->params))
+				throw new \yii\web\BadRequestHttpException("No parameters specified for the source. Please speficy the api, file, json or CSV data first. ");
+			$this->processor->setRawData($this->processor->job->params);
+			$this->processor->setSource($this->processor->job->params);
+			$data['success'] = $this->processor->start('batch');
+			if($data['success'])
+			{
+				$this->processor->batchImport('elements');
+				$data['data'] = $this->renderPartial("preview", [
+					"model" => $this->model,
+					'attributes' => $this->processor->formAttributes(),
+					"dataProvider" => new \yii\data\ArrayDataProvider(['allModels' => array_map(function ($prepared) {
+						return $this->processor->transformFormAttributes($prepared);
+					}, \yii\helpers\ArrayHelper::toArray($this->processor->getPreparedData(0)))])
+				]);
+				$data['url'] = \Yii::$app->urlManager->createUrl(['/import/update/'.$this->processor->job->getId()]);
+				$ret_val['data'] = $this->processor->getPreparedData(0);
+				Response::viewOptions(null, [
+					'args' => [
+						'content' => $data['data']
+					]
+				]);
+			}
+		}
 
 		return $ret_val;
 	}
@@ -155,8 +260,8 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 			'select' => $this->sourceSelectFields
 		]);
 
-		$this->getProcessor()->limit = $this->importerModule->limit;
-		$this->getProcessor()->batchSize = $this->importerModule->batchSize;
+		$this->processor->limit = $this->importerModule->limit;
+		$this->processor->batchSize = $this->importerModule->batchSize;
 
 		return $this->actionImportAll($id, true);
 	}
@@ -174,15 +279,15 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 			$this->model = $this->findModel(Source::className(), $id, [], [
 				'select' => $this->sourceSelectFields
 			]);
-			$this->getProcessor()->limit = 1000;
-			$this->getProcessor()->batchSize = $this->importerModule->batchSize;
+			$this->processor->limit = 1000;
+			$this->processor->batchSize = $this->importerModule->batchSize;
 		}
 
-		$this->getProcessor()->setJob($this->model);
+		$this->processor->job = $this->model;
 		$this->model = null;
-		if($this->getProcessor()->getJOb() instanceof Source)
+		if($this->processor->job instanceof Source)
 		{
-			$result = $this->getProcessor()->batchImport('data');
+			$result = $this->processor->batchImport('data');
 			$imported = [];
 			foreach($result as $idx=>$jobElement)
 			{
@@ -203,7 +308,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				Element::updateAll(['is_imported' => true], ['id' => $imported]);
 
 			$ret_val['message'] = "Imported <b>".$ret_val['processed']."</b> out of <b>".$ret_val['count']."</b> elements!";
-			$ret_val['percent'] = $this->getProcessor()->getJob()->percentComplete();
+			$ret_val['percent'] = $this->processor->getJob()->percentComplete();
 			if($ret_val['exists'])
 				$ret_val['message'] .= " <b>".$ret_val['exists']."</b> out of <b>".$ret_val['count']."</b> the entires already exist!";
 			if($ret_val['exists'])
@@ -228,9 +333,9 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		]);
 		$this->model->setFlag('source-where', ['ids' => $elementIds]);
 
-		$this->getProcessor()->limit = $this->importerModule->limit;
-		$this->getProcessor()->batchSize = $this->importerModule->batchSize;
-		$this->getProcessor()->offset = $this->model->getElementsArray()
+		$this->processor->limit = $this->importerModule->limit;
+		$this->processor->batchSize = $this->importerModule->batchSize;
+		$this->processor->offset = $this->model->getElementsArray()
 			->where([
 				'is_imported' => true
 			])->count();
@@ -249,12 +354,14 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		];
 		return $ret_val;*/
 		$ret_val = parent::actionCreate();
-		if(isset($ret_val['success']) && $ret_val['success'])
-		{
-			$ret_val['url'] = \Yii::$app->urlManager->createUrl(['/import/preview/'.$this->model->getId()]);
-			$this->getProcessor();
+		if(isset($ret_val['success']) && $ret_val['success']) {
+			$ret_val = $this->processSourceData();
+			$ret_val['form'] = [
+				'action' => \Yii::$app->urlManager->createUrl(['/import/view/'.$this->model->getId()])
+			];
+			$this->processor;
 		}
-		return $ret_val;
+		return $this->renderResponse($ret_val, null, \Yii::$app->request->isAjax);
 	}
 
 	public function actionElement($type, $id=null)
@@ -273,9 +380,9 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		if($model instanceof Element)
 		{
 			$this->model = $model->source;
-			$this->getProcessor()->setJob($model->source);
-			$this->getProcessor()->prepare([$model]);
-			$ret_val = array_shift($this->getProcessor()->import('data'));
+			$this->processor->setJob($model->source);
+			$this->processor->prepare([$model]);
+			$ret_val = array_values($this->processor->import('data'))[0];
 			if($ret_val['success'] || @$ret_val['exists'])
 			{
 				$model->setScenario('import');
@@ -296,20 +403,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		{
 			case 'update':
 			$this->model = $this->findModel($this->model->className(), $id, ['author']);
-			/*$options = [
-				//'provider' => 'elementsArray'
-				'provider' => ['elementsArray', function ($objects) {
-					return array_map(function ($object) {
-						return $this->getProcessor()->transformFormAttributes($object);
-					}, $objects);
-				}]
-			];*/
-			$options = [];
 			$id = null;
-			break;
-
-			default:
-			$options = [];
 			break;
 		}
 		$options['formOptions'] = [
@@ -325,7 +419,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				'pageSize' => 50
 			]
 		]);
-		$data['args']['processor'] = $this->getProcessor();
+		$data['args']['processor'] = $this->processor;
 		Response::viewOptions(null, $data);
 		return $this->renderResponse([], Response::viewOptions(), \Yii::$app->request->isAjax);
 	}

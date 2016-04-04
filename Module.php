@@ -32,6 +32,7 @@ class Module extends \yii\base\Module
 	private $_parsers;
 	private $_sources;
 	private $_parser;
+	private $_processor;
 
 	public function init()
 	{
@@ -73,27 +74,34 @@ class Module extends \yii\base\Module
 		return $routes;
 	}
 
-	public function getParser($type=false)
+	public function getParser($type)
 	{
 		if(isset($this->_parser[$type]))
 			return $this->_parser[$type];
 
-		switch($type)
-		{
-			case array_key_exists($type, $this->getTypes()):
-			$options = ArrayHelper::getValue($this->getParsers(), $type, []);
-			unset($options['name']);
-			break;
-
-			default:
-			$options = ['class' => CsvParser::className()];
-			break;
-		}
-		if(!class_exists($options['class']))
-			throw new \yii\base\UnknownClassException("Couldn't find parser ($parser) for '$type'");
+		$options = ArrayHelper::getValue($this->getParsers(), $type, []);
+		unset($options['name']);
+		if(!isset($options['class']) || !class_exists($options['class']))
+			throw new \yii\base\UnknownClassException("Couldn't find parser for '$type'");
 
 		$this->_parser[$type] = \Yii::createObject($options);
 		return $this->_parser[$type];
+	}
+
+	public function getProcessor($type)
+	{
+		if(isset($this->_processor[$type]))
+			return $this->_processor[$type];
+
+		$options = ArrayHelper::getValue($this->getTypes(), $type, []);
+		unset($options['name'], $options['class']);
+		$options['class'] = $options['processorClass'];
+		unset($options['processorClass']);
+		if(!isset($options['class']) || !class_exists($options['class']))
+			throw new \yii\base\UnknownClassException("Couldn't find processor for '$type'");
+
+		$this->_processor[$type] = \Yii::createObject($options);
+		return $this->_processor[$type];
 	}
 
 	/**
@@ -106,7 +114,7 @@ class Module extends \yii\base\Module
 		$ret_val = false;
 		switch($type)
 		{
-			case in_array($type, $this->Types()):
+			case in_array($type, $this->_types):
 			$ret_val = $this->getParser($type)->import($data);
 			break;
 
@@ -148,6 +156,11 @@ class Module extends \yii\base\Module
 	}
 
 	public function getTypes($what=null)
+	{
+		return $this->extractValues($this->_types, $what);
+	}
+
+	public function getProcessors($what=null)
 	{
 		return $this->extractValues($this->_types, $what);
 	}
