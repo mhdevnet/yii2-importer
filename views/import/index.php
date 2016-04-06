@@ -148,6 +148,25 @@ use nitm\helpers\Icon;
 						]
 					]);
 				},
+				'view' => function ($url, $model) {
+					return \nitm\widgets\modal\Modal::widget([
+						'size' => 'x-large',
+						'toggleButton' => [
+							'tag' => 'a',
+							'label' => Icon::forAction('view'),
+							'href' => \Yii::$app->urlManager->createUrl([$url, '__format' => 'modal']),
+							'title' => Yii::t('yii', 'View '),
+							'class' => 'fa-2x',
+							'role' => 'dynamicAction viewAction disabledOnClose',
+						],
+						'contentOptions' => [
+							"class" => "modal-full"
+						],
+						'dialogOptions' => [
+							"class" => "modal-full"
+						]
+					]);
+				},
 				'replies' => function($url, $model) {
 					return \nitm\widgets\replies\RepliesCount::widget([
 						"model" => $model->reply(),
@@ -155,7 +174,7 @@ use nitm\helpers\Icon;
 					]);
 				}
 			],
-			'template' => "{form/update} {replies}",
+			'template' => "{form/update} {view} {replies}",
 			'urlCreator' => function($action, $model, $key, $index) {
 				return '/import/'.$action.'/'.$model->getId();
 			},

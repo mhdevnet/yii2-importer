@@ -118,14 +118,14 @@ $importSubmit = Html::tag('div',
         'actionColumn' => [
             'buttons' => [
                 'element' => function ($url, $model) {
-                    if(ArrayHelper::getValue($model, 'is_imported', false) !== true)
+                    //if(ArrayHelper::getValue($model, 'is_imported', false) !== true)
                         return \yii\helpers\Html::a(Icon::forAction('upload'), \Yii::$app->urlManager->createUrl([$url, '__format' => 'json']), [
                             'title' => Yii::t('yii', 'Import'),
                             'class' => 'fa-2x',
                             'role' => 'importElement'
                         ]);
-                    else
-                        return Icon::show('thumbs-up', ['class' => 'text-success fa-2x']);
+                    //else
+                    //    return Icon::show('thumbs-up', ['class' => 'text-success fa-2x']);
                 },
                 'update-element' => function ($url, $model, $index) {
                     if(ArrayHelper::getValue($model, 'is_imported', false) !== true)

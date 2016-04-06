@@ -17,7 +17,8 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		'id', 'name', 'author_id', 'created_at',
 		'type', 'data_type', 'count',
 		'total', 'source', 'signature',
-		'completed', 'completed_by', 'completed_at'
+		'completed', 'completed_by', 'completed_at',
+		'remote_type', 'remote_id'
 	];
 
 	protected $_importer;
@@ -29,7 +30,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				'rules' => [
 					[
 						'actions' => [
-							'element', 'elements',
+							'element', 'elements', 'preview',
 							'batch', 'import-all', 'import-batch',
 							'update-element'
 						],
@@ -42,6 +43,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				'actions' => [
 					'element' => ['post'],
 					'elements' => ['post'],
+					'preview' => ['get'],
 					'update-element' => ['post'],
 					'batch' => ['post'],
 					'import-all' => ['post', 'get'],
@@ -108,7 +110,15 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 
     public function actionIndex($className=null, $options=[])
     {
-		return parent::actionIndex(SourceSearch::className());
+		return parent::actionIndex(SourceSearch::className(), [
+			'construct' => [
+				'defaults' => [
+					'sort' => [
+						'created_at' => SORT_DESC,
+					]
+				]
+			]
+		]);
     }
 
 	public function actionUpdateElement($id)
@@ -136,6 +146,30 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		}
 		$this->responseFormat = 'json';
 		return $ret_val;
+	}
+
+	/**
+	 * Preview import data. This occurs after an import has been created
+	 * @param  [type] $id [description]
+	 * @return [type]     [description]
+	 */
+	public function actionPreview($id, $modelClass=null, $options=[])
+	{
+		$this->model = $this->findModel(Source::className(), $id);
+		$ret_val = $this->processSourceData();
+		Response::viewOptions('view', 'preview');
+		Response::viewOptions('args', [
+			"model" => $this->model,
+			'attributes' => $this->processor->formAttributes(),
+			"dataProvider" => new \yii\data\ActiveDataProvider([
+				'query' => $this->model->getElementsArray(),
+				'pagination' => [
+					'defaultPageSize' => 50,
+					'pageSize' => 50
+				]
+			])
+		]);
+		return $this->rendrResponse($ret_val, Response::viewOptions(), \Yii::$app->request->isAjax);
 	}
 
 	/**
@@ -178,80 +212,6 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				])
 			]
 		], $options));
-	}
-
-	/**
-	 * Preview import data. This occurs after an import has been created
-	 * @param  [type] $id [description]
-	 * @return [type]     [description]
-	 */
-	public function processSourceData()
-	{
-		$ret_val = [
-			'success' => true
-		];
-		if(!$this->model)
-			return [
-				'success' => false,
-				'message' => "The import with the id: $id doesn't exist"
-			];
-
-		if(!$this->importerModule->isSupported($this->model->type))
-			throw new \yii\base\ErrorException("Unsupported type: ".$this->model->type);
-
-        $this->model->setScenario('preview');
-		switch($this->model->source)
-		{
-			case 'file':
-			$file = UploadedFile::getInstance($this->model, 'raw_data[file]');
-			$ret_val['data'] = $file->tempName;
-			$ret_val['files'] = [
-				array_filter(array_intersect_key(\yii\helpers\ArrayHelper::toArray($file), array_flip(['name', 'size', 'error'])))
-			];
-			break;
-
-			case 'url':
-			$ret_val['data'] = ArrayHelper::getValue($this->model->raw_data, 'url', $this->model->raw_data);
-			break;
-
-			case 'api':
-			$ret_val['data'] = ArrayHelper::getValue($this->model->raw_data, 'api', $this->model->raw_data);
-			break;
-
-			default:
-			$ret_val['data'] = ArrayHelper::getValue($this->model->raw_data, 'text', $this->model->raw_data);
-			break;
-		}
-
-		if($this->processor)
-		{
-			$this->processor->job->setParams();
-			if(empty($this->processor->job->params))
-				throw new \yii\web\BadRequestHttpException("No parameters specified for the source. Please speficy the api, file, json or CSV data first. ");
-			$this->processor->setRawData($this->processor->job->params);
-			$this->processor->setSource($this->processor->job->params);
-			$data['success'] = $this->processor->start('batch');
-			if($data['success'])
-			{
-				$this->processor->batchImport('elements');
-				$data['data'] = $this->renderPartial("preview", [
-					"model" => $this->model,
-					'attributes' => $this->processor->formAttributes(),
-					"dataProvider" => new \yii\data\ArrayDataProvider(['allModels' => array_map(function ($prepared) {
-						return $this->processor->transformFormAttributes($prepared);
-					}, \yii\helpers\ArrayHelper::toArray($this->processor->getPreparedData(0)))])
-				]);
-				$data['url'] = \Yii::$app->urlManager->createUrl(['/import/update/'.$this->processor->job->getId()]);
-				$ret_val['data'] = $this->processor->getPreparedData(0);
-				Response::viewOptions(null, [
-					'args' => [
-						'content' => $data['data']
-					]
-				]);
-			}
-		}
-
-		return $ret_val;
 	}
 
 	public function actionImportBatch($id)
@@ -328,9 +288,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 	protected function actionElements($id)
 	{
 		$elementIds = \Yii::$app->request($post);
-		$this->model = $this->findModel(Source::className(), $id, [], [
-			'select' => $this->sourceSelectFields
-		]);
+		$this->model = $this->findModel(Source::className(), $id, []);
 		$this->model->setFlag('source-where', ['ids' => $elementIds]);
 
 		$this->processor->limit = $this->importerModule->limit;
@@ -422,5 +380,45 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		$data['args']['processor'] = $this->processor;
 		Response::viewOptions(null, $data);
 		return $this->renderResponse([], Response::viewOptions(), \Yii::$app->request->isAjax);
+	}
+
+	/**
+	 * Preview import data. This occurs after an import has been created
+	 * @param  [type] $id [description]
+	 * @return [type]     [description]
+	 */
+	protected function processSourceData()
+	{
+		$ret_val = [
+			'success' => true
+		];
+		if(!$this->model)
+			return [
+				'success' => false,
+				'message' => "The import with the id: $id doesn't exist"
+			];
+
+		if(!$this->importerModule->isSupported($this->model->type))
+			throw new \yii\base\ErrorException("Unsupported type: ".$this->model->type);
+
+		if($this->processor)
+		{
+	        $this->processor->job->setScenario('preview');
+			$this->processor->job->decode();
+			$ret_val['data'] = ArrayHelper::getValue($this->processor->job->raw_data, $this->processor->job->source, $this->processor->job->raw_data);
+			$this->processor->job->setParams();
+			if(empty($this->processor->job->params))
+				throw new \yii\web\BadRequestHttpException("No parameters specified for the source. Please speficy the api, file, json or CSV data first. ");
+			$this->processor->setRawData($this->processor->job->params);
+			$this->processor->setSource($this->processor->job->params);
+			$data['success'] = $this->processor->start('batch');
+			if($data['success']) {
+				$this->processor->batchImport('elements');
+				$data['url'] = \Yii::$app->urlManager->createUrl(['/import/update/'.$this->processor->job->getId()]);
+				$ret_val['data'] = $this->processor->getPreparedData(0);
+			}
+		}
+
+		return $ret_val;
 	}
 }

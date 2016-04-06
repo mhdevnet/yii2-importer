@@ -18,6 +18,7 @@ abstract class BaseImporter extends \yii\base\Model
 	public $batchSize = 10;
 
 	protected $primaryModel;
+	protected $baseModel;
 	protected $job;
 	protected $jobId;
 	protected $chunks = 1;
@@ -405,17 +406,16 @@ abstract class BaseImporter extends \yii\base\Model
 	{
 		if(!is_subclass_of($class, \nitm\search\BaseSearch::className()))
 			$class = (new $class)->searchClass;
-		$search = new $class([
+		$search = new $class(array_merge([
 			'inclusiveSearch' => true,
 			'booleanSearch' => true,
 			'queryOptions' => $queryOptions
-		]);
-		$key = $search->isWhat().md5($key);
-		if(Cache::exists($key))
+		], ArrayHelper::remove($condition, 'construct', [])));
+		$key = $key === false ? $search->isWhat().md5(json_encode($key)) : null;
+		if(!($key === false) && Cache::exists($key))
 			return Cache::getCachedModel(null, $key, $class, $condition);
 		else {
 			$query = $search->search($condition)->query;
-
 			if(ArrayHelper::getValue($queryOptions, 'asArray', false) === true)
 				$existing = $many ? $query->asArray()->all() : $query->asArray()->one();
 			else
@@ -425,13 +425,14 @@ abstract class BaseImporter extends \yii\base\Model
 				$cacheFunc = $many ? 'setCachedModelArray' : 'setCachedModel';
 				Cache::setCachedModel($key, $existing);
 				return $existing;
-			}
-			else {
+			} else {
+				if(empty($existing))
+					$existing = $condition;
 				$class = $search->primaryModelClass;
-				$condition = $many ? $condition : [$condition];
+				$existing = $many ? $existing : [$existing];
 				$ret_val = array_map(function ($attributes) use($class, $queryOptions) {
 					return (ArrayHelper::getValue($queryOptions, 'asArray', false) === true) ? $attributes : new $class($attributes);
-				}, $condition);
+				}, $existing);
 				return $many ? $ret_val : array_pop($ret_val);
 			}
 		}
@@ -450,9 +451,32 @@ abstract class BaseImporter extends \yii\base\Model
 		return $model;
 	}
 
+	protected static function normalize($value)
+	{
+		return trim(ucwords(strtolower($value)));
+	}
+
+	protected static function normalizeToArray($value)
+	{
+		if(is_array($value))
+			return $value;
+		$splitter = strpos($value, '|') != false ? '|' : ',';
+		$ret_val = array_filter(array_map([static::className(), 'normalize'], explode($splitter, $value)));
+		return array_unique($ret_val);
+	}
+
 	public function save()
 	{
 		$this->job->setScenario('create');
 		return $this->job->save();
+	}
+
+	protected function extractParts($from)
+	{
+		if(ArrayHelper::isAssociative($from))
+			return $from;
+		else {
+			return array_combine($this->importer->fields, $from);
+		}
 	}
 }

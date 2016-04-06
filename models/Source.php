@@ -58,16 +58,19 @@ class Source extends BaseImported
 
 	public function convertSource($value)
 	{
+		if($this->source === 'file') {
+			$file = \yii\web\UploadedFile::getInstance($this, 'raw_data[file]');
+			if($file)
+				$value = $file->tempName;
+		}
 		switch($this->type)
 		{
 			case 'csv':
-			/*$value = json_encode([
-				'text' => $value
-			]);*/
+			$this->source = 'text';
 			$parser = \Yii::$app->getModule('nitm-importer')->getParser($this->type);
 			$parser->parse($value);
 			$value = json_encode([
-				'text' => explode("\n", $value)
+				'text' => $parser->csvArray
 			]);
 			break;
 		}
@@ -251,7 +254,8 @@ class Source extends BaseImported
 			'name', 'type', 'data_type',
 			'count', 'total', 'source',
 			'signature', 'completed', 'completed_by',
-			'completed_at', 'created_at', 'id'
+			'completed_at', 'created_at', 'id',
+			'remote_type', 'remote_id'
 		];
 	}
 

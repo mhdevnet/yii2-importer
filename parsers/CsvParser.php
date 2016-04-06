@@ -21,7 +21,7 @@ class CsvParser extends BaseParser
 
 	protected function prepareData($data)
 	{
-		if(is_string($data)) {
+		if(is_string($data) && !file_exists($data)) {
 			$this->data = explode("\n", $data);
 		} else {
 			$this->data = $data;
@@ -47,13 +47,22 @@ class CsvParser extends BaseParser
 		{
 			$data = array_filter($data);
 			if($this->shouldAddId)
-				array_unshift($data, null);
+				array_unshift($data, uniqid());
 			if(count($data) >= 1)
 				$this->parsedData[] = $data;
 			unset($data);
 			$line++;
 		}
 		return $this;
+	}
+
+	public function getCsvArray()
+	{
+		if(is_array($this->parsedData))
+			return array_merge((array)implode(',', $this->fields), array_map(function ($data) {
+				return implode(',', $data);
+			}, $this->parsedData));
+		return null;
 	}
 
 	protected function isEnd()
@@ -81,6 +90,8 @@ class CsvParser extends BaseParser
 			$ret_val = is_array($this->handle()->current()) ? $this->handle()->current() : str_getcsv($this->handle()->current(), ',', '"');
 			$this->handle()->next();
 		}
+		if(empty($ret_val))
+			return null;
 		return array_map('trim', $ret_val);
 	}
 
