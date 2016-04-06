@@ -169,16 +169,18 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				]
 			])
 		]);
-		return $this->rendrResponse($ret_val, Response::viewOptions(), \Yii::$app->request->isAjax);
+		return $this->renderResponse($ret_val, Response::viewOptions(), \Yii::$app->request->isAjax);
 	}
 
 	/**
-	 * Preview import data. This occurs after an import has been created
+	 * View import data. This occurs after an import has been created
 	 * @param  [type] $id [description]
 	 * @return [type]     [description]
 	 */
 	public function actionView($id, $modelClass=null, $options=[])
 	{
+		if(!$this->isResponseFormatSpecified)
+			$this->responseFormat = 'html';
 		$this->model = $this->findModel(Source::className(), $id);
 		$formOptions = [
 			'action' => '/import/update/'.$this->model->getId(),
@@ -303,19 +305,22 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 
 	public function actionCreate($modelClass=null, $viewOptions=[])
 	{
-		/*$this->setResponseFormat('json');
+		$this->setResponseFormat('json');
 		$ret_val = [
 			'action' => 'create',
 			'id' => 13,
 			'success' => true,
-			'url' => \Yii::$app->urlManager->createUrl(['/import/preview/13'])
+			'url' => \Yii::$app->urlManager->createUrl(['/import/view/114']),
+			'form' => [
+				'action' => \Yii::$app->urlManager->createUrl(['/import/form/update/'.$this->model->getId()])
+			]
 		];
-		return $ret_val;*/
+		return $ret_val;
 		$ret_val = parent::actionCreate();
 		if(isset($ret_val['success']) && $ret_val['success']) {
 			$ret_val = $this->processSourceData();
 			$ret_val['form'] = [
-				'action' => \Yii::$app->urlManager->createUrl(['/import/view/'.$this->model->getId()])
+				'action' => \Yii::$app->urlManager->createUrl(['/import/form/update/'.$this->model->getId()])
 			];
 			$this->processor;
 		}
@@ -414,8 +419,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 			$data['success'] = $this->processor->start('batch');
 			if($data['success']) {
 				$this->processor->batchImport('elements');
-				$data['url'] = \Yii::$app->urlManager->createUrl(['/import/update/'.$this->processor->job->getId()]);
-				$ret_val['data'] = $this->processor->getPreparedData(0);
+				$ret_val['url'] = \Yii::$app->urlManager->createUrl(['/import/view/'.$this->processor->job->getId()]);
 			}
 		}
 

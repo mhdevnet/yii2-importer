@@ -28,19 +28,32 @@ class CsvParser extends BaseParser
 		}
 	}
 
+	protected function parseFields($fields) {
+		$fields = array_map('strtolower', $fields);
+		$this->shouldAddId = empty(array_intersect($fields, ['id', '_id']));
+		if($this->shouldAddId)
+			array_unshift($fields, '_id');
+		return $fields;
+	}
+
 	public function parse($rawData, $offset = 0, $limit = 150, $options=[])
 	{
+		$this->_isFile = null;
+		$this->_handle = null;
 		$this->parsedData = null;
 		$this->prepareData($rawData);
 		if(!count($this->fields))
 			if(($firstLine = $this->read()) !== false) {
-				$this->fields = $firstLine;
-				$this->shouldAddId = empty(array_intersect($this->fields, ['id', '_id']));
-				if($this->shouldAddId)
-					array_unshift($this->fields, '_id');
+				$this->fields = $this->parseFields($firstLine);
 			}
-		else
+		else {
 			$this->seek($offset);
+		}
+		$current = is_array($this->handle()->current()) ? $this->handle()->current() : explode(',', $this->handle()->current());
+		if($this->parseFields($current) == $this->fields) {
+			$this->handle()->next();
+			print_r($this->handle()->current());
+		}
 
 		$line = $offset;
 		while((($line <= ($limit+$offset)) && !$this->isEnd()) && ((($data = $this->read()) != false)))
@@ -50,6 +63,8 @@ class CsvParser extends BaseParser
 				array_unshift($data, uniqid());
 			if(count($data) >= 1)
 				$this->parsedData[] = $data;
+			else
+				echo "Skipping ".json_encode($data)."\n";
 			unset($data);
 			$line++;
 		}
@@ -58,10 +73,12 @@ class CsvParser extends BaseParser
 
 	public function getCsvArray()
 	{
-		if(is_array($this->parsedData))
-			return array_merge((array)implode(',', $this->fields), array_map(function ($data) {
-				return implode(',', $data);
+		if(is_array($this->parsedData)) {
+			$this->fields = is_array($this->fields) ? $this->fields : explode(',', $this->fields);
+			return array_merge([$this->fields], array_map(function ($data) {
+				return array_map('utf8_encode', $data);
 			}, $this->parsedData));
+		}
 		return null;
 	}
 
@@ -103,7 +120,7 @@ class CsvParser extends BaseParser
 		$path = is_null($path) ? $this->data : $path;
 		$this->_isFile = is_string($path) && file_exists($path);
 
-		if($this->_isFile && !is_object($this->_handle)) {
+		if($this->_isFile) {
 			$this->_handle = new SplFileObject($path, 'r');
 			$this->_handle->setFlags(SplFileObject::SKIP_EMPTY);
 		} else {

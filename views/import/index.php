@@ -212,12 +212,9 @@ use nitm\helpers\Icon;
 		]);
 
 		$metaInfo = Html::tag('div',
-			Html::tag('div',
-				implode('<br>', [$statusInfo])
-			),[
+			Html::tag('div', implode('<br>', [$statusInfo])),[
 				'class' => 'wrapper'
-			]
-		);
+			]);
 		return Html::tag('tr',
 			Html::tag(
 				'td',

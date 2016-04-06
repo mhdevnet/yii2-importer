@@ -324,7 +324,9 @@ abstract class BaseImporter extends \yii\base\Model
 	public function import($job='elements')
 	{
 		$this->start();
-		$ret_val = [];
+		$ret_val = [
+			'success' => false
+		];
 		switch($job)
 		{
 			case 'elements':
@@ -476,7 +478,7 @@ abstract class BaseImporter extends \yii\base\Model
 		if(ArrayHelper::isAssociative($from))
 			return $from;
 		else {
-			return array_combine($this->importer->fields, $from);
+			return array_combine(array_map('strtolower', $this->importer->fields), $from);
 		}
 	}
 }

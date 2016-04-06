@@ -20,43 +20,47 @@ $form = ActiveForm::begin([
 
 ]);
 
-$importSubmit = Html::tag('div',
-	Html::tag('div',
-		Html::submitButton('Import Page', [
-			'class' => 'btn btn-primary',
-			'onclick' => '$nitm.module("import").importElements(event, "'.$form->options['id'].'");',
+$importSubmit = \yii\bootstrap\ButtonGroup::widget([
+	'encodeLabels' => false,
+	'buttons' => [
+		[
+			'label' => Html::a('Import Page', '#', [
+				'onclick' => '$nitm.module("import").importElements(event, "'.$form->options['id'].'");'
+			]),
+			'options' => [
+				'class' => (($model->percentComplete() >= 100) ? 'btn-disabled disabled' : 'btn-default')
+			]
+		], [
+			'label' => Html::a(($model->percentComplete() >= 100 ? '100% complete!' : $model->percentComplete().'% done. Import Next Batch'), '#', [
+					'role' => 'importBatch',
+					'onclick' => '$nitm.module("import").importBatch(event);',
+					'data-url' => '/import/import-batch/'.$model->getId()
+				]),
+			'options' => [
+				'class' => 'btn '.(($model->percentComplete() >= 100) ? 'btn-success' : 'btn-info')
+			]
+		], [
+			'label' => Html::a(($model->percentComplete() >= 100 ? '100% complete!' : $model->percentComplete().'% done. Import Remaining'), '#', [
+				'role' => 'importAll',
+				'onclick' => '$nitm.module("import").importAll(event);',
+				'data-url' => '/import/import-batch/'.$model->getId(),
+				'data-tooltip' => 'THis is an intensit process. Please wait for everything to complete'
+			]),
+			'options' => [
+				'class' => 'btn '.(($model->percentComplete() >= 100) ? 'btn-success' : 'btn-warning'),
+			]
+		]
+	]
+]);
 
-		])
-		."&nbsp;&nbsp;".
-		Html::a(($model->percentComplete() == 100 ? '100% complete!' : $model->percentComplete().'% done. Import Next Batch'), '#', [
-			'role' => 'importBatch',
-			'class' => 'btn '.(($model->percentComplete() == 100) ? 'btn-success' : 'btn-info'),
-			'onclick' => '$nitm.module("import").importBatch(event);',
-			'data-url' => '/import/import-batch/'.$model->getId()
-		])
-		."&nbsp;&nbsp;".
-		Html::a(($model->percentComplete() == 100 ? '100% complete!' : $model->percentComplete().'% done. Import Remaining'), '#', [
-			'role' => 'importAll',
-			'class' => 'btn '.(($model->percentComplete() == 100) ? 'btn-success' : 'btn-warning'),
-			'onclick' => '$nitm.module("import").importAll(event);',
-			'data-url' => '/import/import-batch/'.$model->getId(),
-			'data-tooltip' => 'THis is an intensit process. Please wiat for everything to complete'
-		]), [
-		'class' => 'col-md-12 col-lg-12'
-	]),[
-		'class' => 'row'
-	]);
-
-	$this->registerJs('$nitm.onModuleLoad("import", function (module) {
-		module.initElementImport();
-		module.initUpdateElement();
-		module.initElementImportForm();
-	})');
+$this->registerJs('$nitm.onModuleLoad("import", function (module) {
+	module.initElementImport();
+	module.initUpdateElement();
+	module.initElementImportForm();
+})');
 ?>
-<div class="full-height" id="element-preview-container">
-    <div id="alert"></div>
-    <?php
-
+<br><br>
+<?php
     //We're dealing with data pulled from the DB. Tansform it
     if($dataProvider instanceof \yii\data\ActiveDataProvider)
         $dataProvider->setModels(array_map(function ($data) use($processor){
@@ -88,12 +92,12 @@ $importSubmit = Html::tag('div',
             'pjax' => true,
             'floatHeader' => true,
 			'beforeHeader' => Html::tag('div', $importSubmit, [
-                'class' => 'text-right kv-thead-float',
-                'style' => 'background-color: rgba(0, 0, 0, 0.5); padding: 6px; position:fixed; margin-top: -50px; right: 30px; z-index: 1040'
+                'class' => 'text-right kv-thead-float text-right',
+                'style' => 'background-color: rgba(0, 0, 0, 0.5); z-index: 1040'
 			]),
             'options' => [
                 'id' => 'elements-preview',
-                'role' => 'previewImport'
+                'role' => 'previewImport',
             ],
             'tableOptions' => [
                 'id' => 'elements-preview-data'
@@ -137,7 +141,7 @@ $importSubmit = Html::tag('div',
                         ]);
                 },
             ],
-            'template' => "{element} {update-element}",
+            'template' => "{update-element} {element}",
             'urlCreator' => function($action, $array, $key, $index) use($model) {
                 $id = ArrayHelper::getValue($array, 'id', ArrayHelper::getValue($array, '_id', null));
                 $type = is_null($id) ? $model->getId() : 'element';
@@ -150,5 +154,4 @@ $importSubmit = Html::tag('div',
     ]);
 
     ActiveForm::end();
-    ?>
-</div>
+?>

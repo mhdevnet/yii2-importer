@@ -71,12 +71,14 @@ class Import extends NitmEntity {
 		var message = result.message || "Success! You can import specific records in this dataset below";
 		$nitm.trigger('notify', [message, this.classes.success, form]);
 		if(result.success) {
-			let $form = $(form);
+			let $form = $(form),
+				$container = $(this.views.containerId);
+			$container.parents('.modal-dialog').removeClass('modal-sm modal-md modal-lg').addClass('modal-xlg modal-full');
+			$form.attr('action', result.form.action);
+			$form.data('id', result.id);
+			$form.find(this.inputs.roles.join(',')).addClass('disabled').attr('disabled', true);
 			$.get(result.url, (result) => {
-				$form.attr('action', result.form.action);
-				$form.data('id', result.id);
-				$form.find(this.inputs.roles.split(',')).addClass('disabled').attr('disabled', true);
-				$form.find(this.views.preview).html(result);
+				$container.find(this.views.preview).html(result);
 			});
 		}
 	}

@@ -79,7 +79,7 @@ class Module extends \yii\base\Module
 		if(isset($this->_parser[$type]))
 			return $this->_parser[$type];
 
-		$options = ArrayHelper::getValue($this->getParsers(), $type, []);
+		$options = ArrayHelper::getValue($this->getParsers(), \yii\helpers\Inflector::singularize($type), []);
 		unset($options['name']);
 		if(!isset($options['class']) || !class_exists($options['class']))
 			throw new \yii\base\UnknownClassException("Couldn't find parser for '$type'");
@@ -93,9 +93,13 @@ class Module extends \yii\base\Module
 		if(isset($this->_processor[$type]))
 			return $this->_processor[$type];
 
-		$options = ArrayHelper::getValue($this->getTypes(), $type, []);
+		if(!$type)
+			$options = current($this->getTypes());
+		else {
+			$options = ArrayHelper::getValue($this->getTypes(), $type, []);
+		}
 		unset($options['name'], $options['class']);
-		$options['class'] = $options['processorClass'];
+		$options['class'] = ArrayHelper::getValue($options, 'processorClass', null);
 		unset($options['processorClass']);
 		if(!isset($options['class']) || !class_exists($options['class']))
 			throw new \yii\base\UnknownClassException("Couldn't find processor for '$type'");

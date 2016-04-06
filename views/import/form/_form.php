@@ -25,7 +25,7 @@ $formOptions = array_replace_recursive($formOptions, [
 ]);
 
 ?>
-<div class="row" role="importFormContainer">
+<div class="row" role="import">
     <?php if($model->isNewRecord): ?>
 	<div class="col-lg-12 col-md-12 col-sm-12 <?= \Yii::$app->request->isAjax ? '' : 'absolute'?>">
     <?php else: ?>
@@ -104,8 +104,8 @@ $formOptions = array_replace_recursive($formOptions, [
 </div>
 <?php if(\Yii::$app->request->isAjax): ?>
 <script type='text/javascript'>
-$nitm.onModuleLoad('entity:import', function (module) {
-	module.initForms('<?= $formOptions['container']['id']; ?>', 'entity:import');
+$nitm.onModuleLoad('import', function (module) {
+	module.initForms('<?= $formOptions['container']['id']; ?>', 'import');
 });
 </script>
 <?php endif; ?>
