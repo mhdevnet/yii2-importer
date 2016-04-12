@@ -17,12 +17,13 @@ use yii\helpers\ArrayHelper;
 class BaseParser extends \yii\base\Object
 {
 	public $parsedData;
+	public $fields = [];
 
 	protected $_limit = 100;
 	protected $_offset = 0;
 	protected $_data;
 
-	public $fields = [];
+	private $_parsed = [];
 
 	public function parse($data)
 	{
@@ -65,5 +66,15 @@ class BaseParser extends \yii\base\Object
 	public function getLimit()
 	{
 		return (int)$this->_limit;
+	}
+
+	protected function getSignature($rawData)
+	{
+		return md5(json_encode($rawData));
+	}
+
+	protected function shouldParse($rawData)
+	{
+		return !in_array($this->getSignature($rawData), $this->_parsed);
 	}
 }

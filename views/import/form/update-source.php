@@ -30,11 +30,11 @@ switch($model->type) {
 				'tag' => 'a',
 				'data-method' => 'post',
 				'label' => "Re-Parse Source Params ".Icon::forAction('view'),
-				'href' => \Yii::$app->urlManager->createUrl(['/import/preview/'.$model->id, '__format' => 'modal']),
+				'href' => \Yii::$app->urlManager->createUrl(['/import/re-parse/'.$model->id, '__format' => 'modal']),
 				'title' => Yii::t('yii', 'Preview '),
 				'class' => 'btn btn-warning',
 				'role' => 'dynamicAction updateAction disabledOnClose',
-				'data-confirm' => 'Are you sure you want to refetch the source data for '.$model->title().'?'
+				'data-confirm' => 'WARNING!! This will delete the current imported/unimported elements for this source. Are you sure 100% you want to refetch the source data for '.$model->title().'? If unsure you may simply create a new import and add extra data that way.'
 			],
 			'contentOptions' => [
 				"class" => "modal-full"

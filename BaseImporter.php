@@ -121,7 +121,7 @@ abstract class BaseImporter extends \yii\base\Model
 
 	public function setPreparedData($index, $data)
 	{
-		return Cache::cache()->set($this->jobId.'-'.$index, $data, 300);
+		Cache::cache()->set($this->jobId.'-'.$index, $data, 300);
 	}
 
 	public function deletePreparedData($index)
@@ -223,9 +223,6 @@ abstract class BaseImporter extends \yii\base\Model
 			$preparedData = $this->getPreparedData($i);
 			if(!count($preparedData) >= 1)
 				continue;
-
-			$this->setRawData($preparedData, true);
-
 			foreach($preparedData as $idx=>$data)
 			{
 				list($title, $type, $elementData, $isNew) = $this->prepareElement($data);
@@ -305,8 +302,7 @@ abstract class BaseImporter extends \yii\base\Model
 
 			default:
 			$this->importer->setData($this->source);
-			while(is_array($chunk = ArrayHelper::getValue($this->importer->parse($this->source, $this->offset, $this->batchSize), 'parsedData', null)))
-			{
+			while(is_array($chunk = ArrayHelper::getValue($this->importer->parse($this->source, $this->offset, $this->batchSize), 'parsedData', null))) {
 				$this->prepare([$chunk]);
 				if(!$this->_isPrepared)
 					continue;

@@ -30,7 +30,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				'rules' => [
 					[
 						'actions' => [
-							'element', 'elements', 'preview',
+							'element', 'elements', 're-parse',
 							'batch', 'import-all', 'import-batch',
 							'update-element'
 						],
@@ -43,7 +43,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				'actions' => [
 					'element' => ['post'],
 					'elements' => ['post'],
-					'preview' => ['get'],
+					're-parse' => ['post'],
 					'update-element' => ['post'],
 					'batch' => ['post'],
 					'import-all' => ['post', 'get'],
@@ -153,13 +153,17 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 	 * @param  [type] $id [description]
 	 * @return [type]     [description]
 	 */
-	public function actionPreview($id, $modelClass=null, $options=[])
+	public function actionReParse($id, $modelClass=null, $options=[])
 	{
 		$this->model = $this->findModel(Source::className(), $id);
+		Element::deleteAll([
+			'imported_data_id' => $this->model->id
+		]);
 		$ret_val = $this->processSourceData();
 		Response::viewOptions('view', 'preview');
 		Response::viewOptions('args', [
 			"model" => $this->model,
+			'processor' => $this->processor,
 			'attributes' => $this->processor->formAttributes(),
 			"dataProvider" => new \yii\data\ActiveDataProvider([
 				'query' => $this->model->getElementsArray(),
@@ -305,7 +309,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 
 	public function actionCreate($modelClass=null, $viewOptions=[])
 	{
-		$this->setResponseFormat('json');
+		/*$this->setResponseFormat('json');
 		$ret_val = [
 			'action' => 'create',
 			'id' => 13,
@@ -315,7 +319,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 				'action' => \Yii::$app->urlManager->createUrl(['/import/form/update/'.$this->model->getId()])
 			]
 		];
-		return $ret_val;
+		return $ret_val;*/
 		$ret_val = parent::actionCreate();
 		if(isset($ret_val['success']) && $ret_val['success']) {
 			$ret_val = $this->processSourceData();
@@ -406,15 +410,13 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		if(!$this->importerModule->isSupported($this->model->type))
 			throw new \yii\base\ErrorException("Unsupported type: ".$this->model->type);
 
-		if($this->processor)
-		{
+		if($this->processor) {
 	        $this->processor->job->setScenario('preview');
 			$this->processor->job->decode();
 			$ret_val['data'] = ArrayHelper::getValue($this->processor->job->raw_data, $this->processor->job->source, $this->processor->job->raw_data);
 			$this->processor->job->setParams();
 			if(empty($this->processor->job->params))
 				throw new \yii\web\BadRequestHttpException("No parameters specified for the source. Please speficy the api, file, json or CSV data first. ");
-			$this->processor->setRawData($this->processor->job->params);
 			$this->processor->setSource($this->processor->job->params);
 			$data['success'] = $this->processor->start('batch');
 			if($data['success']) {

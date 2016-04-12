@@ -52,7 +52,7 @@ class Source extends BaseImported
             [['remote_id'], 'integer'],
 			[['name'], 'unique', 'targetAttribute' => ['name', 'type', 'data_type']],
 			[['raw_data'], 'validateSource'],
-			[['raw_data'], 'filter', 'filter' => [$this, 'convertSource'], 'on' => ['create']]
+			[['raw_data'], 'filter', 'filter' => [$this, 'convertSource'], 'on' => ['create', 'update']]
         ]);
     }
 
@@ -268,7 +268,7 @@ class Source extends BaseImported
 
 	public function saveElement($attributes, $asArray=false)
 	{
-		$element = new \nitm\importer\models;\Element($attributes);
+		$element = new \nitm\importer\models\Element($attributes);
 		$element->setScenario('create');
 		$existing = Element::find()->where([
 			'imported_data_id' => $this->id,
@@ -322,33 +322,40 @@ class Source extends BaseImported
 		}, $attributes);
 
 		//Postgres doesn't support on duplicate key so getting existing elements with this signature
-		$existing = Element::find()->select(['signature'])->where(["not IN", 'signature', array_map(function ($element) {
-			return $element['signature'];
-		}, $attributes)])->asArray()->indexBy('signature')->all();
+		$existing = $this->getElements()
+			->select(['signature', 'imported_data_id'])
+			->where(["in", 'signature', array_map(function ($element) {
+				return $element['signature'];
+			}, $attributes)])
+			->asArray()->indexBy('signature')->all();
 
 		$attributes = array_filter($attributes, function ($element) use ($existing){
 			return !isset($existing[$element['signature']]);
 		});
 
-		$command = \Yii::$app->getDb()->createCommand();
+		if(count($attributes)) {
 
-		$sql = $command->batchInsert(Element::tableName(), $fields, array_map('array_values', $attributes))->getSql();
-		//Postgres doesn't support on duplicate key
-		//$sql .= ' ON DUPLICATE KEY UPDATE imported_data_id='.$this->id;
+			$command = \Yii::$app->getDb()->createCommand();
 
-		$command->setSql($sql);
-		//If the batch insert was successful then get the inserted IDs based on the signature and return the job
-		if($command->execute())
-		{
-			$ret_val = array_map(function ($result) {
-				$result = [
-					'success' => true,
-					'id' => $result['id'],
-					'link' => \Yii::$app->urlManager->createUrl(['/import/element/'.$result['id']])
-				];
-			}, Element::find()->select(['id'])->where(['signature' => array_map(function ($element) {
-				return $element['signature'];
-			}, $attributes)])->asArray()->all());
+			$sql = $command->batchInsert(Element::tableName(), $fields, array_map('array_values', $attributes))->getSql();
+			//Postgres doesn't support on duplicate key
+			//$sql .= ' ON DUPLICATE KEY UPDATE imported_data_id='.$this->id;
+
+			$command->setSql($sql);
+			//If the batch insert was successful then get the inserted IDs based on the signature and return the job
+			if($command->execute()) {
+				$this->decode();
+				$this->raw_data = array_merge($this->raw_data, $attributes);
+				$ret_val = array_map(function ($result) {
+					$result = [
+						'success' => true,
+						'id' => $result['id'],
+						'link' => \Yii::$app->urlManager->createUrl(['/import/element/'.$result['id']])
+					];
+				}, Element::find()->select(['id'])->where(['signature' => array_map(function ($element) {
+					return $element['signature'];
+				}, $attributes)])->asArray()->all());
+			}
 		}
 		return $ret_val;
 	}

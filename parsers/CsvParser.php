@@ -30,43 +30,47 @@ class CsvParser extends BaseParser
 
 	protected function parseFields($fields) {
 		$fields = array_map('strtolower', $fields);
-		$this->shouldAddId = empty(array_intersect($fields, ['id', '_id']));
-		if($this->shouldAddId)
-			array_unshift($fields, '_id');
+		if($this->shouldAddId === null) {
+			$this->shouldAddId = empty(array_intersect($fields, ['id', '_id'])) && empty($this->fields);
+			if($this->shouldAddId)
+				array_unshift($fields, '_id');
+		}
 		return $fields;
 	}
 
 	public function parse($rawData, $offset = 0, $limit = 150, $options=[])
 	{
-		$this->_isFile = null;
-		$this->_handle = null;
-		$this->parsedData = null;
-		$this->prepareData($rawData);
-		if(!count($this->fields))
-			if(($firstLine = $this->read()) !== false) {
-				$this->fields = $this->parseFields($firstLine);
-			}
-		else {
-			$this->seek($offset);
-		}
-		$current = is_array($this->handle()->current()) ? $this->handle()->current() : explode(',', $this->handle()->current());
-		if($this->parseFields($current) == $this->fields) {
-			$this->handle()->next();
-			print_r($this->handle()->current());
-		}
+		if($this->shouldParse($rawData)) {
+			$this->_isFile = null;
+			$this->_handle = null;
+			$this->shouldAddId = null;
+			$this->parsedData = null;
+			$this->prepareData($rawData);
+			if(!count($this->fields))
+				if(($firstLine = $this->read()) !== false) {
+					$this->fields = $this->parseFields($firstLine);
+				}
 
-		$line = $offset;
-		while((($line <= ($limit+$offset)) && !$this->isEnd()) && ((($data = $this->read()) != false)))
-		{
-			$data = array_filter($data);
-			if($this->shouldAddId)
-				array_unshift($data, uniqid());
-			if(count($data) >= 1)
-				$this->parsedData[] = $data;
-			else
-				echo "Skipping ".json_encode($data)."\n";
-			unset($data);
-			$line++;
+			if($this->seek($offset) || !$this->isEnd()) {
+				$current = is_array($this->handle()->current()) ? $this->handle()->current() : str_getcsv($this->handle()->current(), ',', '"');
+				if($this->parseFields($current) === $this->fields) {
+					$this->handle()->next();
+				}
+
+				$line = $offset;
+				while($line <= ($limit+$offset) && !$this->isEnd())
+				{
+					$data = array_filter($this->read());
+					if($this->shouldAddId)
+						array_unshift($data, uniqid());
+					if(count($data) >= 1 && (count($data) == count($this->fields)))
+						$this->parsedData[] = $data;
+					else
+						echo "Skipping ".json_encode($data)."\n";
+					unset($data);
+					$line++;
+				}
+			}
 		}
 		return $this;
 	}
@@ -84,6 +88,8 @@ class CsvParser extends BaseParser
 
 	protected function isEnd()
 	{
+		if($this->_isFile)
+			return $this->handle()->eof();
 		return !$this->handle()->valid();
 	}
 
@@ -94,19 +100,24 @@ class CsvParser extends BaseParser
 
 	protected function seek($to)
 	{
-		return $this->handle()->seek($to);
+		if($this->handle() instanceof \ArrayIterator) {
+			if($this->handle()->offsetExists($to)) {
+				$this->handle()->seek($to);
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			$this->handle()->seek($to);
+			return true;
+		}
 	}
 
 	protected function read()
 	{
-		$this->handle();
-		if($this->_isFile) {
-			$ret_val = $this->handle($this->data)->fgetcsv( ',', '"');
-		}
-		else {
-			$ret_val = is_array($this->handle()->current()) ? $this->handle()->current() : str_getcsv($this->handle()->current(), ',', '"');
-			$this->handle()->next();
-		}
+		$current = $this->handle($this->data)->current();
+		$ret_val = is_array($current) ? $current : str_getcsv($current, ',', '"');
+		$this->handle()->next();
 		if(empty($ret_val))
 			return null;
 		return array_map('trim', $ret_val);
@@ -123,6 +134,7 @@ class CsvParser extends BaseParser
 		if($this->_isFile) {
 			$this->_handle = new SplFileObject($path, 'r');
 			$this->_handle->setFlags(SplFileObject::SKIP_EMPTY);
+			$this->_handle->setFlags(SplFileObject::READ_CSV);
 		} else {
 			$this->_handle = new ArrayIterator($this->data);
 		}
