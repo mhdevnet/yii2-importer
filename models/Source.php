@@ -344,14 +344,13 @@ class Source extends BaseImported
 			$command->setSql($sql);
 			//If the batch insert was successful then get the inserted IDs based on the signature and return the job
 			if($command->execute()) {
-				$this->decode();
-				$this->raw_data = array_merge($this->raw_data, $attributes);
 				$ret_val = array_map(function ($result) {
 					$result = [
 						'success' => true,
 						'id' => $result['id'],
 						'link' => \Yii::$app->urlManager->createUrl(['/import/element/'.$result['id']])
 					];
+					return $result;
 				}, Element::find()->select(['id'])->where(['signature' => array_map(function ($element) {
 					return $element['signature'];
 				}, $attributes)])->asArray()->all());

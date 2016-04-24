@@ -49,6 +49,28 @@ abstract class BaseImporter extends \yii\base\Model
 		return static::$_fields;
 	}
 
+	public function rules() {
+		return [
+			[['source'], function ($attribute, $params) {
+				$message = $this->validateSource();
+				if($message !== true) {
+					$this->addError($attribute, $message);
+				}
+			}]
+		];
+	}
+
+	protected function validateSource() {
+		return true;
+	}
+
+	protected function getErrorMessage()
+	{
+		return implode('. ', array_map(function ($group) {
+			return array_values($group);
+		}, $this->getErrors()));
+	}
+
 	/**
 	 * Perform functions after each insert of a model
 	 * @param mixed $data
@@ -302,14 +324,21 @@ abstract class BaseImporter extends \yii\base\Model
 
 			default:
 			$this->importer->setData($this->source);
-			while(is_array($chunk = ArrayHelper::getValue($this->importer->parse($this->source, $this->offset, $this->batchSize), 'parsedData', null))) {
-				$this->prepare([$chunk]);
-				if(!$this->_isPrepared)
-					continue;
+			if($this->validate()) {
+				while(is_array($chunk = $this->importer->parse($this->source, $this->offset, $this->batchSize)->parsedData)) {
+					$this->prepare([$chunk]);
+					if(!$this->_isPrepared)
+						continue;
 
-				$this->parse();
-				$ret_val = array_merge($ret_val, $this->importElements());
-				$this->offset += count($chunk);
+					$this->parse();
+					$ret_val = array_merge($ret_val, $this->importElements());
+					$this->offset += count($chunk);
+				}
+			} else {
+				$ret_val = [
+					'success' => false,
+					'message' => 'The data you provided failed validation. The reason was: '.$this->errorMessage
+				];
 			}
 			break;
 		}

@@ -120,6 +120,7 @@ class Import extends NitmEntity {
 		let $container = $nitm.getObj(containerId || this.views.preview);
 		$container.find(this.views.element).each((i, elem) => {
 			let $elem = $(elem);
+			console.log($elem);
 			$elem.on('click', (e) =>  {
 				e.preventDefault();
 				$nitm.trigger('start-spinner', [$elem]);

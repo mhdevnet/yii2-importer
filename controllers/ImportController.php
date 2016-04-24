@@ -322,7 +322,7 @@ abstract class ImportController extends \nitm\controllers\DefaultController
 		return $ret_val;*/
 		$ret_val = parent::actionCreate();
 		if(isset($ret_val['success']) && $ret_val['success']) {
-			$ret_val = $this->processSourceData();
+			$ret_val = array_merge($ret_val, $this->processSourceData());
 			$ret_val['form'] = [
 				'action' => \Yii::$app->urlManager->createUrl(['/import/form/update/'.$this->model->getId()])
 			];

@@ -40,18 +40,20 @@ class CsvParser extends BaseParser
 
 	public function parse($rawData, $offset = 0, $limit = 150, $options=[])
 	{
+		$this->parsedData = null;
 		if($this->shouldParse($rawData)) {
 			$this->_isFile = null;
 			$this->_handle = null;
 			$this->shouldAddId = null;
-			$this->parsedData = null;
 			$this->prepareData($rawData);
 			if(!count($this->fields))
 				if(($firstLine = $this->read()) !== false) {
 					$this->fields = $this->parseFields($firstLine);
 				}
+			if($this->handle()->current() === $this->fields)
+				$this->read();
 
-			if($this->seek($offset) || !$this->isEnd()) {
+			if( !$this->isEnd() && $this->seek($offset)) {
 				$current = is_array($this->handle()->current()) ? $this->handle()->current() : str_getcsv($this->handle()->current(), ',', '"');
 				if($this->parseFields($current) === $this->fields) {
 					$this->handle()->next();
@@ -61,12 +63,12 @@ class CsvParser extends BaseParser
 				while($line <= ($limit+$offset) && !$this->isEnd())
 				{
 					$data = array_filter($this->read());
-					if($this->shouldAddId)
-						array_unshift($data, uniqid());
-					if(count($data) >= 1 && (count($data) == count($this->fields)))
-						$this->parsedData[] = $data;
-					else
-						echo "Skipping ".json_encode($data)."\n";
+					if(count($data)) {
+						if($this->shouldAddId)
+							array_unshift($data, uniqid());
+						if(count($data) >= 1 && (count($data) == count($this->fields)))
+							$this->parsedData[] = $data;
+					}
 					unset($data);
 					$line++;
 				}
